@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ellie's focus diary 🌸 - Daily Focus & Life Companion</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sacramento&display=swap" rel="stylesheet">
+
+  <!-- Remix Icon -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Pink Hero Banner Header with Taller Height (1/4 screen) & Scenery Insights -->
+    <header class="hero-header" id="heroHeaderBg">
+      <div class="hero-overlay"></div>
+      <div class="header-content">
+        <div class="brand-badge">
+          <div class="logo-icon"><i class="ri-heart-pulse-fill"></i></div>
+          <div class="brand-text">
+            <h1>Ellie's focus diary 🌸</h1>
+            <span class="shift-indicator" id="currentShiftBadge">🌅 MORNING SHIFT</span>
+          </div>
+        </div>
+
+        <div class="live-clock-container">
+          <div class="clock-date" id="liveDateDisplay">Tuesday, July 28, 2026</div>
+          <div class="clock-time">
+            <span id="liveClockHHMM">11 : 54</span>
+            <span class="clock-ss" id="liveClockSS">41</span>
+            <span class="clock-ampm" id="liveClockAMPM">AM</span>
+          </div>
+        </div>
+
+        <nav class="nav-actions">
+          <button class="nav-btn" id="changeBgBtn" title="Change Scenery Image"><i class="ri-landscape-line"></i> View Scenery</button>
+          <button class="nav-btn" id="locationInsightBtn" title="Google Travel Insight"><i class="ri-map-pin-2-line"></i> Location Insight</button>
+          <button class="nav-btn active" id="tabWorkspaceBtn"><i class="ri-layout-grid-line"></i> Workspace</button>
+          <button class="nav-btn" id="tabAnalyticsBtn"><i class="ri-pie-chart-line"></i> Analytics</button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Daily Check-in & Top 3 Goals Section -->
+    <section class="daily-checkin-card">
+      <div class="checkin-top-row">
+        <div class="checkin-item energy-selector-group">
+          <label><i class="ri-flashlight-line"></i> Daily Energy Level:</label>
+          <div class="energy-options">
+            <button class="energy-btn active" data-energy="High">🔥 High</button>
+            <button class="energy-btn" data-energy="Medium">⚡ Medium</button>
+            <button class="energy-btn" data-energy="Low">🕯️ Low</button>
+          </div>
+        </div>
+
+        <div class="checkin-item flex-grow text-right">
+          <button class="btn-ai-consult" id="aiConsultTriggerBtn">
+            <i class="ri-brain-fill"></i> ✨ AI Morning Consultant (Gemini)
+          </button>
+        </div>
+      </div>
+
+      <!-- Top 3 Goals & Hard Deadlines Grid (Expanded Deadlines Column Width) -->
+      <div class="checkin-bottom-grid">
+        <div class="top-goals-box">
+          <label class="section-label"><i class="ri-trophy-line"></i> Top 3 Priorities / Goals Today:</label>
+          <div class="three-goals-inputs">
+            <div class="goal-input-item">
+              <span class="goal-num">1</span>
+              <input type="text" id="dailyGoal1" placeholder="Goal #1 (North Star Priority)..." />
+            </div>
+            <div class="goal-input-item">
+              <span class="goal-num">2</span>
+              <input type="text" id="dailyGoal2" placeholder="Goal #2..." />
+            </div>
+            <div class="goal-input-item">
+              <span class="goal-num">3</span>
+              <input type="text" id="dailyGoal3" placeholder="Goal #3..." />
+            </div>
+          </div>
+        </div>
+
+        <!-- Space for Mandatory Today Deadlines with Expanded Width for Full Text -->
+        <div class="hard-deadlines-box">
+          <div class="deadline-header">
+            <label class="section-label"><i class="ri-alarm-warning-line"></i> Timeline & Hard Deadlines Today:</label>
+            <button class="btn-xs-add" id="addDeadlineBtn">+ Add Deadline</button>
+          </div>
+          <div class="deadline-list" id="hardDeadlinesList">
+            <!-- Dynamic deadlines -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Workspace Area (2 Columns) -->
+    <main class="workspace-main" id="workspaceView">
+      
+      <!-- Left Column: Shift Tasks Manager & Task Filter/Sort Bar -->
+      <section class="shifts-container">
+        
+        <!-- Task Planning Filter & Chronological Auto-Order Bar -->
+        <div class="task-filter-bar">
+          <div class="filter-group">
+            <span><i class="ri-filter-3-line"></i> Filter:</span>
+            <select id="filterPrioritySelect">
+              <option value="all">All Priorities</option>
+              <option value="P1">🔴 P1 Urgent</option>
+              <option value="P2">🟡 P2 Deep Work</option>
+              <option value="P3">🟢 P3 Quick Win</option>
+            </select>
+
+            <select id="filterCognitiveSelect">
+              <option value="all">All Cognitive Loads</option>
+              <option value="Brain-heavy">🧠 Brain-heavy</option>
+              <option value="Routine">⚙️ Routine</option>
+              <option value="Light">☕ Light</option>
+            </select>
+          </div>
+
+          <div class="sort-group">
+            <button class="btn-sort-chip active-sort-btn" id="autoOrderTimeBtn" title="Auto order tasks from earliest to latest start time"><i class="ri-time-line"></i> ⏰ Auto-Order by Start Time</button>
+            <button class="btn-sort-chip" id="sortPriorityBtn"><i class="ri-sort-asc"></i> Priority</button>
+          </div>
+        </div>
+
+        <!-- Morning Shift Card -->
+        <div class="shift-card" id="morningShiftCard" data-shift="morning">
+          <div class="shift-header">
+            <div class="shift-title">
+              <div class="shift-icon morning-icon"><i class="ri-sun-cloudy-line"></i></div>
+              <div>
+                <h3>Morning <span class="badge-now hidden" id="morningNowBadge">Now</span></h3>
+                <p class="shift-meta"><span id="morningTaskCount">0</span> tasks · <span id="morningFocusTime">0</span> min focused</p>
+              </div>
+            </div>
+            <div class="shift-actions">
+              <span class="pom-counter"><strong id="morningPoms">0</strong> poms 🍅</span>
+              <button class="btn-icon toggle-shift-btn"><i class="ri-arrow-up-s-line"></i></button>
+            </div>
+          </div>
+
+          <div class="shift-body">
+            <div class="shift-goal-input">
+              <i class="ri-focus-3-line"></i>
+              <input type="text" class="shift-focus-goal" data-shift="morning" placeholder="Morning focus goal..." />
+            </div>
+
+            <div class="task-list" id="morningTaskList">
+              <!-- Tasks rendered dynamically -->
+            </div>
+
+            <button class="btn-add-task" data-shift="morning">
+              <i class="ri-add-line"></i> Add Task to Morning
+            </button>
+          </div>
+        </div>
+
+        <!-- Afternoon Shift Card -->
+        <div class="shift-card" id="afternoonShiftCard" data-shift="afternoon">
+          <div class="shift-header">
+            <div class="shift-title">
+              <div class="shift-icon afternoon-icon"><i class="ri-sun-line"></i></div>
+              <div>
+                <h3>Afternoon <span class="badge-now hidden" id="afternoonNowBadge">Now</span></h3>
+                <p class="shift-meta"><span id="afternoonTaskCount">0</span> tasks · <span id="afternoonFocusTime">0</span> min focused</p>
+              </div>
+            </div>
+            <div class="shift-actions">
+              <span class="pom-counter"><strong id="afternoonPoms">0</strong> poms 🍅</span>
+              <button class="btn-icon toggle-shift-btn"><i class="ri-arrow-down-s-line"></i></button>
+            </div>
+          </div>
+
+          <div class="shift-body hidden">
+            <div class="shift-goal-input">
+              <i class="ri-focus-3-line"></i>
+              <input type="text" class="shift-focus-goal" data-shift="afternoon" placeholder="Afternoon focus goal..." />
+            </div>
+
+            <div class="task-list" id="afternoonTaskList">
+              <!-- Tasks rendered dynamically -->
+            </div>
+
+            <button class="btn-add-task" data-shift="afternoon">
+              <i class="ri-add-line"></i> Add Task to Afternoon
+            </button>
+          </div>
+        </div>
+
+        <!-- Evening Shift Card -->
+        <div class="shift-card" id="eveningShiftCard" data-shift="evening">
+          <div class="shift-header">
+            <div class="shift-title">
+              <div class="shift-icon evening-icon"><i class="ri-moon-clear-line"></i></div>
+              <div>
+                <h3>Evening <span class="badge-now hidden" id="eveningNowBadge">Now</span></h3>
+                <p class="shift-meta"><span id="eveningTaskCount">0</span> tasks · <span id="eveningFocusTime">0</span> min focused</p>
+              </div>
+            </div>
+            <div class="shift-actions">
+              <span class="pom-counter"><strong id="eveningPoms">0</strong> poms 🍅</span>
+              <button class="btn-icon toggle-shift-btn"><i class="ri-arrow-down-s-line"></i></button>
+            </div>
+          </div>
+
+          <div class="shift-body hidden">
+            <div class="shift-goal-input">
+              <i class="ri-focus-3-line"></i>
+              <input type="text" class="shift-focus-goal" data-shift="evening" placeholder="Evening focus goal..." />
+            </div>
+
+            <div class="task-list" id="eveningTaskList">
+              <!-- Tasks rendered dynamically -->
+            </div>
+
+            <button class="btn-add-task" data-shift="evening">
+              <i class="ri-add-line"></i> Add Task to Evening
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Right Column: Active Focus Execution Widget -->
+      <section class="focus-widget-container">
+        <div class="focus-card">
+          <div class="focus-card-header">
+            <h4>Focus Session</h4>
+            <span class="active-task-category" id="activeCategoryBadge">No task selected</span>
+          </div>
+
+          <div class="active-task-info">
+            <h3 id="activeTaskTitle">Select a task to begin</h3>
+            <p id="activeTaskGoal" class="active-task-subtext">Click ▶️ on any task from your shift lists</p>
+          </div>
+
+          <!-- Circular Progress Countdown Ring -->
+          <div class="timer-display-wrapper">
+            <svg class="progress-ring" width="220" height="220">
+              <circle class="progress-ring-bg" stroke="#fce4ec" stroke-width="10" fill="transparent" r="95" cx="110" cy="110"/>
+              <circle class="progress-ring-bar" id="timerProgressCircle" stroke="#ec407a" stroke-width="10" stroke-linecap="round" fill="transparent" r="95" cx="110" cy="110"/>
+            </svg>
+            
+            <div class="timer-inside">
+              <div class="clock-digits" id="timerDigits">25:00</div>
+              <div class="timer-sub-status" id="timerSubStatus">0 pomodoros done</div>
+              <div class="overtime-badge hidden" id="overtimeBadge">+00:00 overtime</div>
+            </div>
+          </div>
+
+          <!-- Distraction Warning Bar -->
+          <div class="distraction-bar-mini hidden" id="distractionMiniBar">
+            <i class="ri-alert-line"></i>
+            <span>Logged <strong id="miniDistractionMins">0</strong> mins distraction</span>
+          </div>
+
+          <!-- Execution Controls with Pop-out Timer Button -->
+          <div class="timer-controls">
+            <button class="ctrl-btn btn-primary-play" id="timerPlayPauseBtn" title="Start/Pause Focus">
+              <i class="ri-play-fill" id="timerPlayIcon"></i>
+            </button>
+            <button class="ctrl-btn btn-secondary-action" id="timerPauseDistractBtn" title="Log Distraction">
+              <i class="ri-pause-mini-line"></i> Pause & Distract
+            </button>
+            <button class="ctrl-btn btn-break-action" id="triggerShortBreakBtn" title="Take a Short Break">
+              <i class="ri-cup-line"></i> ☕ Short Break
+            </button>
+            <button class="ctrl-btn btn-secondary-action" id="popoutTimerBtn" title="Pop Out Timer (Picture-in-Picture Window)">
+              <i class="ri-picture-in-picture-2-line"></i> Pop-Out Timer
+            </button>
+            <button class="ctrl-btn btn-secondary-action" id="timerExtendBtn" title="Extend Time">
+              <i class="ri-time-line"></i> +5m
+            </button>
+            <button class="ctrl-btn btn-complete-task" id="timerCompleteBtn" title="Complete Task">
+              <i class="ri-checkbox-circle-line"></i> Finish Task
+            </button>
+          </div>
+
+          <!-- Quick Extend Dropdown Pill -->
+          <div class="extend-pill-group hidden" id="extendPillGroup">
+            <span>Quick Extend:</span>
+            <button class="extend-chip" data-mins="5">+5m</button>
+            <button class="extend-chip" data-mins="10">+10m</button>
+            <button class="extend-chip" data-mins="15">+15m</button>
+            <button class="extend-chip" data-mins="25">+25m</button>
+          </div>
+
+          <!-- Inspire Me Pop-Up Launcher Box -->
+          <div class="inspire-box">
+            <div class="inspire-header">
+              <span class="inspire-quote-text" id="inspireQuoteText">"Focus on progress, not perfection. Every small step counts!" 🌸</span>
+              <button class="btn-inspire-me" id="inspireMeBtn"><i class="ri-sparkles-fill"></i> ✨ Inspire Me</button>
+            </div>
+            <div class="self-affirmation-input-row mt-2">
+              <input type="text" id="customAffirmationInput" placeholder="✍️ Write your custom self-affirmation note here..." />
+            </div>
+          </div>
+
+          <!-- Custom YouTube Ambient Music Box -->
+          <div class="lofi-player-box mt-3">
+            <div class="lofi-header">
+              <span><i class="ri-youtube-fill"></i> Custom YouTube Stream:</span>
+              <button class="btn-xs-toggle-music" id="toggleMusicBtn">🎵 Toggle Player</button>
+            </div>
+            <div class="youtube-url-input-group mt-2">
+              <input type="text" id="youtubeUrlInput" placeholder="Paste YouTube link (e.g. https://youtu.be/jfKfPfyJRdk)" value="https://www.youtube.com/watch?v=jfKfPfyJRdk" />
+            </div>
+            <div class="music-iframe-wrapper hidden" id="musicIframeWrapper">
+              <iframe id="lofiAudioFrame" width="100%" height="90" src="https://www.youtube-nocookie.com/embed/jfKfPfyJRdk?enablejsapi=1" title="YouTube Music Player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Analytics View (With Multi-Date Range Filter & Detailed Distractions List) -->
+    <main class="analytics-main hidden" id="analyticsView">
+      
+      <!-- Date Filter Bar for Weekly/Daily Analytics -->
+      <div class="analytics-filter-header">
+        <div class="analytics-title-group">
+          <h2><i class="ri-bar-chart-box-line"></i> Analytics & Focus Reports</h2>
+          <p>Analyze your productivity trends, distraction patterns, and history</p>
+        </div>
+        <div class="date-filter-group">
+          <label><i class="ri-calendar-event-line"></i> Date Range:</label>
+          <select id="analyticsDateRangeSelect">
+            <option value="today">Today (July 28, 2026)</option>
+            <option value="7days" selected>Last 7 Days (Weekly Overview)</option>
+            <option value="30days">Last 30 Days (Monthly Overview)</option>
+            <option value="all">All Time History</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Top Metrics Bar -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon pink"><i class="ri-time-line"></i></div>
+          <div class="metric-content">
+            <span class="metric-label">Focus Minutes</span>
+            <h2 id="metricTotalFocusMins">0</h2>
+            <span class="metric-sub">Minutes targeted</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon purple"><i class="ri-focus-2-line"></i></div>
+          <div class="metric-content">
+            <span class="metric-label">Pomodoros Completed</span>
+            <h2 id="metricPomodorosDone">0</h2>
+            <span class="metric-sub">Sessions completed</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon green"><i class="ri-pulse-line"></i></div>
+          <div class="metric-content">
+            <span class="metric-label">Focus Efficiency Ratio</span>
+            <h2 id="metricEfficiencyRatio">100%</h2>
+            <span class="metric-sub">(Focus - Distract) / Plan</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon red"><i class="ri-error-warning-line"></i></div>
+          <div class="metric-content">
+            <span class="metric-label">Distraction Minutes</span>
+            <h2 id="metricDistractionMins">0</h2>
+            <span class="metric-sub">Minutes interrupted</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Distraction Report & Detailed List of Distractions Table -->
+      <section class="analytics-card">
+        <div class="card-title">
+          <i class="ri-error-warning-fill warning-icon"></i>
+          <h3>Distraction Report & Log Breakdown</h3>
+        </div>
+        <div class="distraction-split-grid">
+          <div class="distraction-box useful">
+            <div class="box-header">
+              <span class="dot green-dot"></span>
+              <h4>Useful / Urgent (Valid Interruptions)</h4>
+            </div>
+            <h2 id="usefulDistractMins">0 <span class="unit">mins</span></h2>
+            <p>Boss calls, urgent client pings, emergency fixes</p>
+          </div>
+
+          <div class="distraction-box useless">
+            <div class="box-header">
+              <span class="dot red-dot"></span>
+              <h4>Useless / Mindless (Internal Wandering)</h4>
+            </div>
+            <h2 id="uselessDistractMins">0 <span class="unit">mins</span></h2>
+            <p>Social media scrolling, news, random thoughts</p>
+          </div>
+        </div>
+
+        <!-- NEW DETAILED LIST OF DISTRACTIONS TABLE -->
+        <div class="distractions-table-wrapper mt-4">
+          <h4 style="font-size: 15px; font-weight: 800; color: var(--text-main); margin-bottom: 12px;"><i class="ri-list-check"></i> Detailed Distraction Log Entries:</h4>
+          <div class="table-wrapper">
+            <table class="daily-log-table distraction-log-table">
+              <thead>
+                <tr>
+                  <th>TIMESTAMP / DATE</th>
+                  <th>TASK TITLE</th>
+                  <th>DISTRACTION TYPE</th>
+                  <th>DURATION</th>
+                  <th>REASON / NOTE</th>
+                </tr>
+              </thead>
+              <tbody id="distractionLogTbody">
+                <tr>
+                  <td colspan="5" class="empty-table-text">No distractions recorded for this date range 🎉</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Daily Log Table -->
+      <section class="analytics-card">
+        <div class="card-title-row">
+          <div class="card-title">
+            <i class="ri-table-line"></i>
+            <h3>Focus Log History Table</h3>
+          </div>
+          <div class="export-btn-group">
+            <button class="btn-export success-btn" id="openGSheetSyncModalBtn"><i class="ri-refresh-line"></i> ⚡ Sync to Google Sheet</button>
+            <button class="btn-export" id="exportCsvBtn"><i class="ri-file-excel-2-line"></i> Export CSV</button>
+            <button class="btn-export secondary" id="exportJsonBtn"><i class="ri-code-s-slash-line"></i> Backup JSON</button>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="daily-log-table" id="dailyLogTable">
+            <thead>
+              <tr>
+                <th>DATE</th>
+                <th>SHIFT</th>
+                <th>CATEGORY</th>
+                <th>PROJECT</th>
+                <th>TASK & GOAL</th>
+                <th>TIME WINDOW</th>
+                <th>OUTPUT & ATTACHMENTS</th>
+                <th>FOCUS</th>
+                <th>DISTRACT</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody id="dailyLogTbody">
+              <tr>
+                <td colspan="10" class="empty-table-text">No tasks recorded for this date range</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- COMPACT FLOATING COUNTDOWN TIMER BAR -->
+  <div class="compact-floating-timer hidden" id="compactFloatingTimer">
+    <div class="floating-left">
+      <span class="floating-badge" id="floatingTaskCat">FOCUS</span>
+      <strong class="floating-title" id="floatingTaskTitle">Task Title</strong>
+    </div>
+    <div class="floating-center">
+      <div class="floating-digits" id="floatingDigits">25:00</div>
+    </div>
+    <div class="floating-right">
+      <button class="btn-floating-ctrl" id="floatingPlayPauseBtn"><i class="ri-play-fill" id="floatingPlayIcon"></i></button>
+      <button class="btn-floating-ctrl finish" id="floatingFinishBtn" title="Finish Task"><i class="ri-checkbox-circle-line"></i></button>
+    </div>
+  </div>
+
+  <!-- MODALS SECTION -->
+
+  <!-- POP-OUT FLOATING TIMER MODAL WINDOW (Picture-in-Picture Mode) -->
+  <div class="popout-timer-window hidden" id="popoutTimerWindow">
+    <div class="popout-header">
+      <span><i class="ri-focus-3-line"></i> Ellie Focus Timer</span>
+      <button class="popout-close-btn" id="closePopoutTimerBtn">&times;</button>
+    </div>
+    <div class="popout-body text-center">
+      <span class="popout-task-name" id="popoutTaskName">Send contract to Elyx</span>
+      <div class="popout-digits" id="popoutDigits">25:00</div>
+      <div class="popout-controls mt-2">
+        <button class="btn-popout-ctrl" id="popoutPlayPauseBtn"><i class="ri-play-fill" id="popoutPlayIcon"></i></button>
+        <button class="btn-popout-ctrl finish" id="popoutFinishBtn" title="Finish Task"><i class="ri-checkbox-circle-line"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSPIRE ME POP-UP MODAL -->
+  <div class="modal-backdrop hidden" id="inspireModalBackdrop">
+    <div class="modal-card modal-sm modal-padded">
+      <div class="modal-header" style="background: linear-gradient(135deg, #f3e5f5, #fce4ec);">
+        <div class="modal-header-brand">
+          <div class="ai-brain-badge" style="background:#ab47bc;"><i class="ri-sparkles-fill"></i></div>
+          <div>
+            <h3 style="color:#7b1fa2;">✨ Ellie's Inspiration</h3>
+            <span class="modal-subhead">Daily motivation & self-affirmation card</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="closeInspireModalBtn">&times;</button>
+      </div>
+      <div class="modal-body-padding text-center">
+        <div class="inspire-modal-quote-card">
+          <i class="ri-double-quotes-l quote-icon"></i>
+          <h2 id="inspireModalQuote">"Do something today that your future self will thank you for."</h2>
+          <span class="quote-author" id="inspireModalAuthor">— Mindful Focus Reflection</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" id="nextInspireQuoteBtn"><i class="ri-refresh-line"></i> Next Quote</button>
+        <button type="button" class="btn-submit" id="closeInspireModalFooterBtn">Close Card</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONGRATS TASK COMPLETED POP-UP MODAL -->
+  <div class="modal-backdrop hidden" id="congratsModalBackdrop">
+    <div class="modal-card modal-sm modal-padded">
+      <div class="modal-header" style="background: linear-gradient(135deg, #d1fae5, #ecfdf5);">
+        <div class="modal-header-brand">
+          <div class="ai-brain-badge" style="background:#10b981;"><i class="ri-trophy-fill"></i></div>
+          <div>
+            <h3 style="color:#047857;">🎉 Congratulations Ellie!</h3>
+            <span class="modal-subhead">Task Completed Successfully</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="closeCongratsModalBtn">&times;</button>
+      </div>
+      <div class="modal-body-padding text-center">
+        <div class="congrats-card-body">
+          <div class="congrats-emoji">🏆 ✨ 🌸</div>
+          <h3 id="congratsTaskTitle" class="mt-2">Task Title Completed!</h3>
+          <p class="congrats-subtext mt-1" id="congratsMeta">You focused for 45 minutes on this session!</p>
+          <div class="congrats-badge-box mt-3" id="congratsDeliverableBox">
+            <span>✅ Deliverable Output Saved!</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-submit btn-success" id="closeCongratsModalFooterBtn">Awesome! On to next task 🚀</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Location Travel Insight Modal -->
+  <div class="modal-backdrop hidden" id="locationInsightModalBackdrop">
+    <div class="modal-card modal-padded">
+      <div class="modal-header">
+        <div class="modal-header-brand">
+          <div class="ai-brain-badge" style="background:#0ea5e9;"><i class="ri-map-pin-2-fill"></i></div>
+          <div>
+            <h3 id="locationNameTitle">Kyoto Cherry Blossoms, Japan</h3>
+            <span class="modal-subhead">Location Scenery Insight & Travel Facts</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="closeLocationModalBtn">&times;</button>
+      </div>
+
+      <div class="modal-body-padding">
+        <div class="location-fact-card">
+          <p id="locationFactDescription">Kyoto is famous for its classical Buddhist temples, gardens, imperial palaces, and traditional wooden houses. Spring brings vibrant cherry blossoms (Sakura) along the Philosopher's Path.</p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <a href="https://www.google.com/search?q=Kyoto+Japan+travel+scenery" target="_blank" class="btn-submit" id="googleSearchLocationBtn"><i class="ri-google-fill"></i> Search Google Insights</a>
+        <button type="button" class="btn-cancel" id="closeLocationModalFooterBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Short Break Modal -->
+  <div class="modal-backdrop hidden" id="breakModalBackdrop">
+    <div class="modal-card modal-sm modal-padded">
+      <div class="modal-header">
+        <h3><i class="ri-cup-line"></i> Take a Short Break</h3>
+        <button class="modal-close-btn" id="closeBreakModalBtn">&times;</button>
+      </div>
+      <div class="modal-body-padding text-center">
+        <p class="modal-subtext">Select break duration. The system will start an active break countdown and shift all upcoming tasks forward!</p>
+        <div class="break-options-grid mt-3">
+          <button class="btn-break-duration active" data-break="5">☕ 5 Mins Break</button>
+          <button class="btn-break-duration" data-break="10">🧘 10 Mins Break</button>
+          <button class="btn-break-duration" data-break="15">🌿 15 Mins Break</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" id="cancelBreakModalBtn">Cancel</button>
+        <button type="button" class="btn-submit btn-success" id="startBreakBtn">Start Break & Shift Schedule</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gemini AI Consult & Interactive Chat Modal -->
+  <div class="modal-backdrop hidden" id="aiConsultModalBackdrop">
+    <div class="modal-card modal-padded">
+      <div class="modal-header">
+        <div class="modal-header-brand">
+          <div class="ai-brain-badge"><i class="ri-brain-fill"></i></div>
+          <div>
+            <h3>AI Morning Consultant (Gemini AI)</h3>
+            <span class="modal-subhead">Plan your day with Gemini AI assistance</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="closeAiModalBtn">&times;</button>
+      </div>
+
+      <div class="ai-consult-body">
+        <div class="api-key-box">
+          <label><i class="ri-key-2-line"></i> Google Gemini API Key (Required for Smart AI reasoning):</label>
+          <input type="password" id="geminiApiKeyInput" placeholder="Enter your Gemini API key (e.g. AIzaSy...)" />
+          <p class="api-key-note">Stored locally in your browser — never sent anywhere except Google's official API.</p>
+        </div>
+
+        <div class="ai-interactive-chat mt-3">
+          <label><i class="ri-chat-voice-line"></i> Ask Gemini AI Anything About Your Schedule:</label>
+          <div class="chat-input-row">
+            <input type="text" id="geminiCustomPromptInput" placeholder="e.g., How should I order my P1 tasks to finish before 3 PM?" />
+            <button type="button" class="btn-submit" id="sendGeminiQueryBtn"><i class="ri-send-plane-fill"></i> Ask AI</button>
+          </div>
+        </div>
+
+        <div class="ai-energy-summary mt-3">
+          <div class="ai-avatar"><i class="ri-heart-pulse-fill"></i></div>
+          <div class="ai-summary-text">
+            <h4 id="aiEnergyTitle">Analysis based on: High Energy Mode 🔥</h4>
+            <p id="aiNorthStarSummary">Top Goals: Ellie's Daily Focus</p>
+          </div>
+        </div>
+
+        <div class="ai-advice-list" id="aiAdviceContentList">
+          <!-- Advice steps populated dynamically -->
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" id="closeAiModalFooterBtn">Close</button>
+        <button type="button" class="btn-submit" id="applyAiOrderBtn"><i class="ri-check-double-line"></i> Auto-reorder & Timebox Tasks</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Task Modal -->
+  <div class="modal-backdrop hidden" id="taskModalBackdrop">
+    <div class="modal-card modal-padded">
+      <div class="modal-header">
+        <h3 id="taskModalTitle">Add New Task</h3>
+        <button class="modal-close-btn" id="closeTaskModalBtn">&times;</button>
+      </div>
+
+      <form id="taskForm">
+        <input type="hidden" id="taskFormId" />
+        <input type="hidden" id="taskFormShift" value="morning" />
+
+        <div class="form-grid">
+          <div class="form-group col-6">
+            <label>Shift / Timeframe:</label>
+            <select id="taskShiftSelect">
+              <option value="morning">🌅 Morning Shift</option>
+              <option value="afternoon">☀️ Afternoon Shift</option>
+              <option value="evening">🌙 Evening Shift</option>
+            </select>
+          </div>
+
+          <div class="form-group col-6">
+            <label>Category:</label>
+            <select id="taskCategorySelect">
+              <option value="Career/Work">💼 Career / Work</option>
+              <option value="Growth/Study">🎓 Growth / Study</option>
+              <option value="Life/Personal">🌺 Life / Personal</option>
+              <option value="Creative/Side">🎨 Creative / Side Projects</option>
+              <option value="Wellness/Health">🏃 Wellness / Health</option>
+              <option value="Admin/Ops">📑 Admin / Operations</option>
+            </select>
+          </div>
+
+          <div class="form-group col-12">
+            <label>Project Name:</label>
+            <input type="text" id="taskProjectInput" placeholder="e.g., Ellie AG Twin, Career OS, Content Strategy..." />
+          </div>
+
+          <div class="form-group col-12">
+            <label>Task Title (*):</label>
+            <input type="text" id="taskTitleInput" required placeholder="What needs to be done?" />
+          </div>
+
+          <div class="form-group col-12">
+            <label>Task Goal:</label>
+            <input type="text" id="taskGoalInput" placeholder="e.g., Complete 3 key sections..." />
+          </div>
+
+          <div class="form-group col-12">
+            <label>Details & Checklist:</label>
+            <textarea id="taskDetailsInput" rows="2" placeholder="Additional notes, links, or references..."></textarea>
+          </div>
+
+          <div class="form-group col-4">
+            <label>Duration (Minutes):</label>
+            <input type="number" id="taskDurationInput" value="25" min="5" step="5" required />
+          </div>
+
+          <div class="form-group col-4">
+            <label>Cognitive Load:</label>
+            <select id="taskCognitiveSelect">
+              <option value="Brain-heavy">🧠 Brain-heavy (Deep Work)</option>
+              <option value="Routine" selected>⚙️ Routine (Standard)</option>
+              <option value="Light">☕ Light (Low Effort)</option>
+            </select>
+          </div>
+
+          <div class="form-group col-4">
+            <label>Priority:</label>
+            <select id="taskPrioritySelect">
+              <option value="P1">🔴 P1 - Urgent & Important</option>
+              <option value="P2" selected>🟡 P2 - Deep Work / Important</option>
+              <option value="P3">🟢 P3 - Quick Win</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" id="cancelTaskModalBtn">Cancel</button>
+          <button type="submit" class="btn-submit" id="saveTaskBtn">Add Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Log Distraction Modal -->
+  <div class="modal-backdrop hidden" id="distractModalBackdrop">
+    <div class="modal-card modal-sm modal-padded">
+      <div class="modal-header">
+        <h3><i class="ri-pause-circle-line"></i> Log Distraction / Pause</h3>
+        <button class="modal-close-btn" id="closeDistractModalBtn">&times;</button>
+      </div>
+
+      <div class="distract-modal-body">
+        <div class="distract-live-counter" id="distractLiveCounterBox">
+          <span>Current Pause Duration:</span>
+          <h2 id="distractTimerDigits">00:00</h2>
+          <span class="warning-30m-text hidden" id="warning30mText">⚠️ Paused for over 30 minutes! Time to refocus!</span>
+        </div>
+
+        <div class="distract-type-selector">
+          <label class="type-radio-label">
+            <input type="radio" name="distractType" value="External" checked />
+            <div class="type-box green">
+              <i class="ri-phone-find-line"></i>
+              <strong>External / Urgent</strong>
+              <span>Boss call, urgent message</span>
+            </div>
+          </label>
+
+          <label class="type-radio-label">
+            <input type="radio" name="distractType" value="Internal" />
+            <div class="type-box red">
+              <i class="ri-earth-line"></i>
+              <strong>Internal / Mindless</strong>
+              <span>Social media, news, wandering</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="form-group mt-3">
+          <label>Reason / Note:</label>
+          <input type="text" id="distractNoteInput" placeholder="e.g., Answered urgent team ping..." />
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-submit" id="saveDistractionBtn">Resume Focus</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Complete Output Modal -->
+  <div class="modal-backdrop hidden" id="outputModalBackdrop">
+    <div class="modal-card modal-sm modal-padded">
+      <div class="modal-header">
+        <h3><i class="ri-checkbox-circle-fill success-icon"></i> Complete Task Deliverable</h3>
+        <button class="modal-close-btn" id="closeOutputModalBtn">&times;</button>
+      </div>
+
+      <div class="modal-body-padding">
+        <p class="modal-subtext">Congrats on completing this task! Attach your links/files below:</p>
+        
+        <div class="form-group">
+          <label>Deliverables Output Summary (*):</label>
+          <textarea id="taskFinalOutputInput" rows="2" required placeholder="e.g., Drafted proposal and generated PDF..."></textarea>
+        </div>
+
+        <div class="form-group mt-2">
+          <label><i class="ri-link"></i> Insert Link (URL):</label>
+          <input type="url" id="taskLinkOutputInput" placeholder="https://docs.google.com/..." />
+        </div>
+
+        <div class="form-group mt-2">
+          <label><i class="ri-attachment-line"></i> Attach File / File Path:</label>
+          <input type="text" id="taskFileOutputInput" placeholder="D:\Downloads\proposal_v1.pdf" />
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" id="cancelOutputModalBtn">Back to Focus</button>
+        <button type="button" class="btn-submit btn-success" id="confirmCompleteTaskBtn">Finish & Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Hard Deadline Modal -->
+  <div class="modal-backdrop hidden" id="deadlineModalBackdrop">
+    <div class="modal-card modal-sm modal-padded">
+      <div class="modal-header">
+        <h3 id="deadlineModalTitle"><i class="ri-alarm-warning-fill"></i> Add Mandatory Deadline</h3>
+        <button class="modal-close-btn" id="closeDeadlineModalBtn">&times;</button>
+      </div>
+      <div class="modal-body-padding">
+        <input type="hidden" id="deadlineFormId" />
+        <div class="form-group">
+          <label>Mandatory Item / Task (*):</label>
+          <input type="text" id="deadlineTitleInput" placeholder="e.g., Submit weekly plan to boss..." />
+        </div>
+        <div class="form-group mt-2">
+          <label>Target Time (HH:MM):</label>
+          <input type="time" id="deadlineTimeInput" required />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" id="cancelDeadlineModalBtn">Cancel</button>
+        <button type="button" class="btn-submit" id="saveDeadlineBtn">Save Deadline</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Sheets Sync Settings Modal -->
+  <div class="modal-backdrop hidden" id="gsheetModalBackdrop">
+    <div class="modal-card modal-padded">
+      <div class="modal-header">
+        <h3><i class="ri-google-line"></i> Sync to Google Sheet</h3>
+        <button class="modal-close-btn" id="closeGsheetModalBtn">&times;</button>
+      </div>
+      <div class="modal-body-padding">
+        <div class="form-group">
+          <label>Google Apps Script Web App Endpoint URL:</label>
+          <input type="url" id="gsheetWebAppUrlInput" placeholder="https://script.google.com/macros/s/.../exec" />
+        </div>
+        <p class="modal-subtext mt-2">
+          Enter your deployed Google Apps Script Web App URL to automatically send and append your daily focus log rows to your Google Sheet!
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" id="copyGSheetClipboardBtn"><i class="ri-file-copy-line"></i> Copy TSV to Clipboard</button>
+        <button type="button" class="btn-submit btn-success" id="confirmSyncGsheetBtn"><i class="ri-cloud-upload-line"></i> Sync Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Alert -->
+  <div class="alert-toast hidden" id="alertToastNotification">
+    <div class="toast-icon"><i class="ri-alarm-warning-line"></i></div>
+    <div class="toast-content">
+      <h4>5 Minutes Remaining!</h4>
+      <p>Wrap up your current step or click <strong>+5m</strong> to extend session.</p>
+    </div>
+    <button class="toast-close-btn" id="closeToastBtn">&times;</button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
