@@ -141,7 +141,7 @@
     ],
     filterPriority: 'all',
     filterCognitive: 'all',
-    analyticsDateRange: '7days', // 'today' | '7days' | '30days' | 'all'
+    analyticsDateRange: '7days',
     activeTaskId: null,
     youtubeUrl: 'https://www.youtube.com/watch?v=jfKfPfyJRdk',
     geminiApiKey: '',
@@ -165,6 +165,7 @@
   };
 
   let timerInterval = null;
+  let externalPopWindow = null;
 
   // --- DOM ELEMENTS ---
   const liveClockHHMM = document.getElementById('liveClockHHMM');
@@ -531,8 +532,8 @@
 
     startBreakBtn.addEventListener('click', handleStartBreakAndShiftSchedule);
 
-    // Pop-out Floating Window Controls
-    popoutTimerBtn.addEventListener('click', () => popoutTimerWindow.classList.toggle('hidden'));
+    // POP-OUT STANDALONE ALWAYS-ON-TOP FLOATING WINDOW ACROSS TABS
+    popoutTimerBtn.addEventListener('click', launchStandalonePopoutWindow);
     closePopoutTimerBtn.addEventListener('click', () => popoutTimerWindow.classList.add('hidden'));
     popoutPlayPauseBtn.addEventListener('click', toggleTimerPlayPause);
     popoutFinishBtn.addEventListener('click', openOutputModal);
@@ -618,6 +619,80 @@
     // Export
     exportCsvBtn.addEventListener('click', exportDataAsCSV);
     exportJsonBtn.addEventListener('click', exportDataAsJSON);
+  }
+
+  // REAL STANDALONE FLOATING WINDOW (Picture-in-Picture / Standalone Window)
+  async function launchStandalonePopoutWindow() {
+    popoutTimerWindow.classList.toggle('hidden');
+
+    if ('documentPictureInPicture' in window) {
+      try {
+        const pipWin = await window.documentPictureInPicture.requestWindow({
+          width: 320,
+          height: 220
+        });
+
+        pipWin.document.body.style.background = '#0f172a';
+        pipWin.document.body.style.color = '#ffffff';
+        pipWin.document.body.style.fontFamily = "'Plus Jakarta Sans', sans-serif";
+        pipWin.document.body.style.margin = '0';
+        pipWin.document.body.style.padding = '20px';
+        pipWin.document.body.style.textAlign = 'center';
+
+        const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
+        const titleText = activeTask ? activeTask.title : 'Ellie Focus Timer';
+
+        pipWin.document.body.innerHTML = `
+          <div style="font-size:13px; font-weight:800; color:#ec407a; margin-bottom:6px;">🌸 Ellie Focus Timer</div>
+          <div style="font-size:14px; font-weight:700; color:#94a3b8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(titleText)}</div>
+          <div id="pipDigits" style="font-size:48px; font-weight:800; font-family:'Outfit', sans-serif; color:#38bdf8; margin:8px 0;">${timerDigits.textContent}</div>
+        `;
+
+        const updatePip = () => {
+          const digitsEl = pipWin.document.getElementById('pipDigits');
+          if (digitsEl) digitsEl.textContent = timerDigits.textContent;
+        };
+
+        const pipInterval = setInterval(updatePip, 1000);
+        pipWin.addEventListener('unload', () => clearInterval(pipInterval));
+        return;
+      } catch (e) {
+        console.log('PiP Window fallback to standalone popout window:', e);
+      }
+    }
+
+    // Standard Window.open Fallback for Browsers without PiP
+    if (!externalPopWindow || externalPopWindow.closed) {
+      externalPopWindow = window.open('', 'EllieFocusTimerWindow', 'width=340,height=220,resizable=yes,scrollbars=no');
+      if (externalPopWindow) {
+        externalPopWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Ellie Focus Timer 🌸</title>
+            <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+            <style>
+              body { background:#0f172a; color:#fff; font-family:'Plus Jakarta Sans', sans-serif; text-align:center; padding:20px; margin:0; }
+              .brand { color:#ec407a; font-size:13px; font-weight:800; }
+              .title { font-size:14px; color:#94a3b8; font-weight:700; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+              .digits { font-size:48px; font-weight:800; font-family:'Outfit', sans-serif; color:#38bdf8; margin:10px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="brand">🌸 Ellie Focus Timer</div>
+            <div class="title" id="popTitle">Focus Session</div>
+            <div class="digits" id="popDigits">${timerDigits.textContent}</div>
+            <script>
+              window.addEventListener('message', (e) => {
+                if (e.data.digits) document.getElementById('popDigits').textContent = e.data.digits;
+                if (e.data.title) document.getElementById('popTitle').textContent = e.data.title;
+              });
+            </script>
+          </body>
+          </html>
+        `);
+      }
+    }
   }
 
   // Chronological Auto-Order by Start Time
@@ -1018,10 +1093,11 @@
   }
 
   function renderTimerDigits() {
+    let formatted = '25:00';
     if (state.timer.mode === 'countdown' || state.timer.mode === 'break') {
       const mins = Math.floor(state.timer.remainingSecs / 60);
       const secs = state.timer.remainingSecs % 60;
-      const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
       timerDigits.textContent = formatted;
       floatingDigits.textContent = formatted;
       popoutDigits.textContent = formatted;
@@ -1032,7 +1108,7 @@
     } else {
       const mins = Math.floor(state.timer.overtimeSecs / 60);
       const secs = state.timer.overtimeSecs % 60;
-      const formatted = `+${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')} overtime`;
+      formatted = `+${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')} overtime`;
       timerDigits.textContent = `00:00`;
       floatingDigits.textContent = `00:00`;
       popoutDigits.textContent = `00:00`;
@@ -1049,6 +1125,15 @@
       timerPlayIcon.className = 'ri-play-fill';
       floatingPlayIcon.className = 'ri-play-fill';
       popoutPlayIcon.className = 'ri-play-fill';
+    }
+
+    // Sync to external popout window if opened
+    if (externalPopWindow && !externalPopWindow.closed) {
+      const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
+      externalPopWindow.postMessage({
+        digits: formatted,
+        title: activeTask ? activeTask.title : 'Focus Session'
+      }, '*');
     }
   }
 
@@ -1358,7 +1443,6 @@
       }
     }
 
-    // Always fallback to smart rule recommendations
     const recommendations = generateAiRecommendations(energy);
     renderAdviceCards(recommendations);
   }
@@ -1547,7 +1631,6 @@
   function renderAnalytics() {
     const range = state.analyticsDateRange || '7days';
 
-    // Filter tasks by date range
     const now = new Date();
     const filteredTasks = state.tasks.filter(t => {
       const taskDate = t.date ? new Date(t.date) : now;
@@ -1562,7 +1645,7 @@
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays <= 30;
       }
-      return true; // 'all'
+      return true;
     });
 
     let totalFocusMins = 0;
@@ -1574,7 +1657,6 @@
 
     const allDistractionEntries = [];
 
-    // Render Daily Log Table
     const tbody = document.getElementById('dailyLogTbody');
     tbody.innerHTML = '';
 
@@ -1624,7 +1706,6 @@
       tbody.appendChild(row);
     });
 
-    // Render Metrics Cards
     document.getElementById('metricTotalFocusMins').textContent = totalFocusMins;
     document.getElementById('metricPomodorosDone').textContent = pomodorosDone;
     document.getElementById('metricDistractionMins').textContent = totalDistractMins;
@@ -1635,7 +1716,6 @@
     document.getElementById('usefulDistractMins').innerHTML = `${usefulDistract} <span class="unit">mins</span>`;
     document.getElementById('uselessDistractMins').innerHTML = `${uselessDistract} <span class="unit">mins</span>`;
 
-    // Render Detailed Distractions List Table
     renderDistractionsLogTable(allDistractionEntries);
   }
 

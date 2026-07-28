@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Ellie's focus diary 🌸 - Daily Focus & Life Companion</title>
 
   <!-- Google Fonts -->
@@ -19,7 +19,7 @@
 <body>
   <div class="app-container">
     
-    <!-- Top Pink Hero Banner Header with Taller Height (1/4 screen) & Scenery Insights -->
+    <!-- Top Pink Hero Banner Header with Responsive Mobile Presence -->
     <header class="hero-header" id="heroHeaderBg">
       <div class="hero-overlay"></div>
       <div class="header-content">
@@ -68,7 +68,7 @@
         </div>
       </div>
 
-      <!-- Top 3 Goals & Hard Deadlines Grid (Expanded Deadlines Column Width) -->
+      <!-- Top 3 Goals & Hard Deadlines Grid -->
       <div class="checkin-bottom-grid">
         <div class="top-goals-box">
           <label class="section-label"><i class="ri-trophy-line"></i> Top 3 Priorities / Goals Today:</label>
@@ -101,7 +101,7 @@
       </div>
     </section>
 
-    <!-- Main Workspace Area (2 Columns) -->
+    <!-- Main Workspace Area -->
     <main class="workspace-main" id="workspaceView">
       
       <!-- Left Column: Shift Tasks Manager & Task Filter/Sort Bar -->
@@ -263,7 +263,7 @@
             <span>Logged <strong id="miniDistractionMins">0</strong> mins distraction</span>
           </div>
 
-          <!-- Execution Controls with Pop-out Timer Button -->
+          <!-- Execution Controls with Real Picture-in-Picture Window Button -->
           <div class="timer-controls">
             <button class="ctrl-btn btn-primary-play" id="timerPlayPauseBtn" title="Start/Pause Focus">
               <i class="ri-play-fill" id="timerPlayIcon"></i>
@@ -274,8 +274,8 @@
             <button class="ctrl-btn btn-break-action" id="triggerShortBreakBtn" title="Take a Short Break">
               <i class="ri-cup-line"></i> ☕ Short Break
             </button>
-            <button class="ctrl-btn btn-secondary-action" id="popoutTimerBtn" title="Pop Out Timer (Picture-in-Picture Window)">
-              <i class="ri-picture-in-picture-2-line"></i> Pop-Out Timer
+            <button class="ctrl-btn btn-secondary-action" id="popoutTimerBtn" title="Pop Out Timer (Real Floating Picture-in-Picture Window Across Tabs)">
+              <i class="ri-picture-in-picture-2-line"></i> Pop-Out Window
             </button>
             <button class="ctrl-btn btn-secondary-action" id="timerExtendBtn" title="Extend Time">
               <i class="ri-time-line"></i> +5m
@@ -324,7 +324,7 @@
 
     </main>
 
-    <!-- Analytics View (With Multi-Date Range Filter & Detailed Distractions List) -->
+    <!-- Analytics View -->
     <main class="analytics-main hidden" id="analyticsView">
       
       <!-- Date Filter Bar for Weekly/Daily Analytics -->
@@ -409,7 +409,7 @@
           </div>
         </div>
 
-        <!-- NEW DETAILED LIST OF DISTRACTIONS TABLE -->
+        <!-- DETAILED LIST OF DISTRACTIONS TABLE -->
         <div class="distractions-table-wrapper mt-4">
           <h4 style="font-size: 15px; font-weight: 800; color: var(--text-main); margin-bottom: 12px;"><i class="ri-list-check"></i> Detailed Distraction Log Entries:</h4>
           <div class="table-wrapper">
