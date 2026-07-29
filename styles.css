@@ -1523,3 +1523,64 @@ body {
   font-size: 11px;
 }
 
+/* PROOF SCREENSHOT PASTE ZONE STYLES */
+.proof-paste-zone {
+  border: 2px dashed #ec4899;
+  background: #fdf2f8;
+  border-radius: var(--radius-sm);
+  padding: 16px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  margin-top: 4px;
+  position: relative;
+}
+
+.proof-paste-zone:hover, .proof-paste-zone.dragover {
+  border-color: #db2777;
+  background: #fce7f3;
+}
+
+.proof-paste-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #db2777;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.proof-paste-placeholder i {
+  font-size: 28px;
+}
+
+.proof-image-preview {
+  position: relative;
+  max-height: 180px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.proof-image-preview img {
+  width: 100%;
+  max-height: 170px;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+}
+
+.btn-remove-proof {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(225, 29, 72, 0.85);
+  color: #ffffff;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+

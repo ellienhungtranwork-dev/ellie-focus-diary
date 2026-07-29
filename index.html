@@ -827,6 +827,22 @@
           <label><i class="ri-attachment-line"></i> Attach File / File Path:</label>
           <input type="text" id="taskFileOutputInput" placeholder="D:\Downloads\proposal_v1.pdf" />
         </div>
+
+        <div class="form-group mt-2">
+          <label><i class="ri-camera-line text-pink"></i> Attach Proof Screenshot (Paste <strong>Ctrl + V</strong>):</label>
+          <div class="proof-paste-zone" id="proofPasteZone">
+            <input type="file" id="proofFileInput" accept="image/*" class="hidden" />
+            <div class="proof-paste-placeholder" id="proofPastePlaceholder">
+              <i class="ri-image-add-line"></i>
+              <span>Click to select or press <strong>Ctrl + V</strong> to Paste Screenshot</span>
+            </div>
+            <div class="proof-image-preview hidden" id="proofImagePreview">
+              <img id="proofPreviewImg" src="" alt="Proof Screenshot Preview" />
+              <button type="button" class="btn-remove-proof" id="removeProofImgBtn"><i class="ri-close-line"></i> Remove Proof</button>
+            </div>
+          </div>
+          <input type="hidden" id="taskProofDataInput" />
+        </div>
       </div>
 
       <div class="modal-footer">

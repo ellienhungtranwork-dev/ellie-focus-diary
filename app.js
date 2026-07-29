@@ -214,6 +214,15 @@
   const confirmImportTasksBtn = document.getElementById('confirmImportTasksBtn');
   let currentParsedTasks = [];
 
+  // Output Deliverable Proof Elements
+  const proofPasteZone = document.getElementById('proofPasteZone');
+  const proofFileInput = document.getElementById('proofFileInput');
+  const proofPastePlaceholder = document.getElementById('proofPastePlaceholder');
+  const proofImagePreview = document.getElementById('proofImagePreview');
+  const proofPreviewImg = document.getElementById('proofPreviewImg');
+  const removeProofImgBtn = document.getElementById('removeProofImgBtn');
+  const taskProofDataInput = document.getElementById('taskProofDataInput');
+
   // Shifts Lists
   const morningTaskList = document.getElementById('morningTaskList');
   const afternoonTaskList = document.getElementById('afternoonTaskList');
@@ -612,6 +621,38 @@
         alertToastNotification.querySelector('h4').textContent = '🎉 Import Tasks Thành Công!';
         alertToastNotification.querySelector('p').innerHTML = `Đã tự động thêm <strong>${currentParsedTasks.length} tasks</strong> từ ảnh chụp màn hình vào Web Focus!`;
         setTimeout(() => alertToastNotification.classList.add('hidden'), 5000);
+      });
+    }
+
+    // Proof Screenshot Paste Zone Listeners
+    if (proofPasteZone) {
+      proofPasteZone.addEventListener('click', (e) => {
+        if (e.target.closest('#removeProofImgBtn')) return;
+        proofFileInput.click();
+      });
+      proofFileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          handleProofFileSelect(e.target.files[0]);
+        }
+      });
+      proofPasteZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        proofPasteZone.classList.add('dragover');
+      });
+      proofPasteZone.addEventListener('dragleave', () => proofPasteZone.classList.remove('dragover'));
+      proofPasteZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        proofPasteZone.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleProofFileSelect(e.dataTransfer.files[0]);
+        }
+      });
+    }
+
+    if (removeProofImgBtn) {
+      removeProofImgBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetProofZone();
       });
     }
 
@@ -1479,6 +1520,13 @@
     taskFinalOutputInput.value = activeTask.output || '';
     taskLinkOutputInput.value = activeTask.linkOutput || '';
     taskFileOutputInput.value = activeTask.fileOutput || '';
+    resetProofZone();
+    if (activeTask.proofImage) {
+      proofPreviewImg.src = activeTask.proofImage;
+      taskProofDataInput.value = activeTask.proofImage;
+      proofPastePlaceholder.classList.add('hidden');
+      proofImagePreview.classList.remove('hidden');
+    }
     outputModalBackdrop.classList.remove('hidden');
   }
 
@@ -1495,13 +1543,14 @@
       activeTask.output = finalOutput;
       activeTask.linkOutput = taskLinkOutputInput.value.trim();
       activeTask.fileOutput = taskFileOutputInput.value.trim();
+      activeTask.proofImage = taskProofDataInput.value || '';
 
       const elapsedSecs = state.timer.initialDurationSecs - state.timer.remainingSecs + state.timer.overtimeSecs;
       activeTask.focusMinsDone = Math.round(elapsedSecs / 60);
 
       congratsTaskTitle.textContent = activeTask.title;
       congratsMeta.textContent = `You focused for ${activeTask.focusMinsDone || activeTask.durationPlannedMin} minutes on this session!`;
-      congratsDeliverableBox.innerHTML = `<span>✅ Deliverable Saved: "${escapeHtml(finalOutput)}"</span>`;
+      congratsDeliverableBox.innerHTML = `<span>✅ Deliverable Saved: "${escapeHtml(finalOutput)}"</span>${activeTask.proofImage ? '<br><small>📷 Screenshot Proof Attached</small>' : ''}`;
       congratsModalBackdrop.classList.remove('hidden');
     }
 
@@ -1918,6 +1967,14 @@
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf('image') !== -1) {
         const blob = items[i].getAsFile();
+        
+        // If Output Deliverable modal is open, paste image directly as screenshot proof!
+        if (outputModalBackdrop && !outputModalBackdrop.classList.contains('hidden')) {
+          handleProofFileSelect(blob);
+          e.preventDefault();
+          break;
+        }
+
         resetScreenshotModal();
         if (screenshotModalBackdrop) screenshotModalBackdrop.classList.remove('hidden');
         handleImageFileSelect(blob);
@@ -1926,6 +1983,27 @@
       }
     }
   });
+
+  function resetProofZone() {
+    if (!proofFileInput) return;
+    proofFileInput.value = '';
+    proofPastePlaceholder.classList.remove('hidden');
+    proofImagePreview.classList.add('hidden');
+    proofPreviewImg.src = '';
+    taskProofDataInput.value = '';
+  }
+
+  function handleProofFileSelect(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      proofPreviewImg.src = e.target.result;
+      taskProofDataInput.value = e.target.result;
+      proofPastePlaceholder.classList.add('hidden');
+      proofImagePreview.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+  }
 
   function resetScreenshotModal() {
     if (!screenshotFileInput) return;
