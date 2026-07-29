@@ -381,10 +381,21 @@
     setupEventListeners();
     renderAll();
     setupScrollAndResizeListeners();
+
+    // Auto-resume running timer if page crashed or reloaded while timer was running
+    if (state.timer && state.timer.isRunning) {
+      startTimer();
+    }
+
+    // Always save state when window is closed, refreshed, or unloaded
+    window.addEventListener('beforeunload', saveState);
   }
 
   function saveState() {
     state.lastActiveDate = TODAY_STR;
+    if (state.timer) {
+      state.timer.lastTickTimestamp = Date.now();
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
@@ -394,6 +405,25 @@
       try {
         const parsed = JSON.parse(saved);
         state = { ...state, ...parsed };
+
+        // Real-time Timer Auto-Recovery On Crash / Page Reload
+        if (state.timer && state.timer.isRunning && state.timer.lastTickTimestamp) {
+          const elapsedSecs = Math.floor((Date.now() - state.timer.lastTickTimestamp) / 1000);
+          if (elapsedSecs > 0) {
+            if (state.timer.mode === 'countdown' || state.timer.mode === 'break') {
+              if (state.timer.remainingSecs > elapsedSecs) {
+                state.timer.remainingSecs -= elapsedSecs;
+              } else {
+                const leftover = elapsedSecs - state.timer.remainingSecs;
+                state.timer.mode = 'overtime';
+                state.timer.remainingSecs = 0;
+                state.timer.overtimeSecs = (state.timer.overtimeSecs || 0) + leftover;
+              }
+            } else {
+              state.timer.overtimeSecs = (state.timer.overtimeSecs || 0) + elapsedSecs;
+            }
+          }
+        }
       } catch (e) {
         console.error('Failed to load state:', e);
       }
@@ -740,6 +770,9 @@
     timerPlayPauseBtn.addEventListener('click', toggleTimerPlayPause);
     floatingPlayPauseBtn.addEventListener('click', toggleTimerPlayPause);
 
+    // Direct Click-to-Edit Timer Digits
+    timerDigits.addEventListener('click', promptCustomTimeEdit);
+
     timerPauseDistractBtn.addEventListener('click', openDistractModal);
     timerExtendBtn.addEventListener('click', () => extendPillGroup.classList.toggle('hidden'));
     timerCompleteBtn.addEventListener('click', openOutputModal);
@@ -751,10 +784,21 @@
 
     document.querySelectorAll('.extend-chip').forEach(chip => {
       chip.addEventListener('click', () => {
-        extendTimer(parseInt(chip.getAttribute('data-mins'), 10));
-        extendPillGroup.classList.add('hidden');
+        const minsAttr = chip.getAttribute('data-mins');
+        if (minsAttr) {
+          extendTimer(parseInt(minsAttr, 10));
+          extendPillGroup.classList.add('hidden');
+        }
       });
     });
+
+    const setCustomTimeBtn = document.getElementById('setCustomTimeBtn');
+    if (setCustomTimeBtn) {
+      setCustomTimeBtn.addEventListener('click', () => {
+        extendPillGroup.classList.add('hidden');
+        promptCustomTimeEdit();
+      });
+    }
 
     // Distraction Modal
     closeDistractModalBtn.addEventListener('click', closeDistractModal);
@@ -1355,6 +1399,7 @@
 
   function startTimer() {
     state.timer.isRunning = true;
+    state.timer.lastTickTimestamp = Date.now();
     timerPlayIcon.className = 'ri-pause-fill';
     floatingPlayIcon.className = 'ri-pause-fill';
     popoutPlayIcon.className = 'ri-pause-fill';
@@ -1362,7 +1407,9 @@
     musicIframeWrapper.classList.remove('hidden');
     updateYoutubeIframeSrc(true);
 
+    clearInterval(timerInterval);
     timerInterval = setInterval(() => {
+      state.timer.lastTickTimestamp = Date.now();
       if (state.timer.mode === 'countdown' || state.timer.mode === 'break') {
         if (state.timer.remainingSecs > 0) {
           state.timer.remainingSecs--;
@@ -1379,6 +1426,11 @@
         state.timer.overtimeSecs++;
       }
       renderTimerDigits();
+
+      // Periodically persist timer progress to localStorage (every 2 seconds)
+      if (state.timer.remainingSecs % 2 === 0 || state.timer.overtimeSecs % 2 === 0) {
+        saveState();
+      }
     }, 1000);
 
     saveState();
@@ -1394,14 +1446,40 @@
   }
 
   function extendTimer(mins) {
+    if (isNaN(mins) || mins === 0) return;
     const addSecs = mins * 60;
+
     if (state.timer.mode === 'overtime') {
-      state.timer.mode = 'countdown';
-      state.timer.remainingSecs = addSecs;
+      if (mins > 0) {
+        state.timer.mode = 'countdown';
+        state.timer.remainingSecs = addSecs;
+        state.timer.initialDurationSecs = addSecs;
+      }
     } else {
-      state.timer.remainingSecs += addSecs;
+      state.timer.remainingSecs = Math.max(10, state.timer.remainingSecs + addSecs);
+      state.timer.initialDurationSecs = Math.max(state.timer.remainingSecs, state.timer.initialDurationSecs + addSecs);
     }
-    state.timer.initialDurationSecs += addSecs;
+    renderTimerDigits();
+    saveState();
+  }
+
+  function promptCustomTimeEdit() {
+    const currentMins = Math.max(1, Math.ceil(state.timer.remainingSecs / 60)) || 25;
+    const input = prompt('✍️ Enter exact remaining focus time (minutes):', currentMins);
+    if (input !== null) {
+      const parsedMins = parseInt(input, 10);
+      if (!isNaN(parsedMins) && parsedMins > 0) {
+        setExactFocusMinutes(parsedMins);
+      }
+    }
+  }
+
+  function setExactFocusMinutes(exactMins) {
+    const secs = exactMins * 60;
+    state.timer.mode = 'countdown';
+    state.timer.remainingSecs = secs;
+    state.timer.initialDurationSecs = secs;
+    state.timer.alert5MinFired = false;
     renderTimerDigits();
     saveState();
   }

@@ -252,8 +252,6 @@
             <h3 id="activeTaskTitle">Select a task to begin</h3>
             <p id="activeTaskGoal" class="active-task-subtext">Click ▶️ on any task from your shift lists</p>
           </div>
-
-          <!-- Circular Progress Countdown Ring -->
           <div class="timer-display-wrapper">
             <svg class="progress-ring" width="220" height="220">
               <circle class="progress-ring-bg" stroke="#fce4ec" stroke-width="10" fill="transparent" r="95" cx="110" cy="110"/>
@@ -261,7 +259,7 @@
             </svg>
             
             <div class="timer-inside">
-              <div class="clock-digits" id="timerDigits">25:00</div>
+              <div class="clock-digits" id="timerDigits" title="Click to edit remaining focus time" style="cursor: pointer;">25:00</div>
               <div class="timer-sub-status" id="timerSubStatus">0 pomodoros done</div>
               <div class="overtime-badge hidden" id="overtimeBadge">+00:00 overtime</div>
             </div>
@@ -287,8 +285,8 @@
             <button class="ctrl-btn btn-secondary-action" id="popoutTimerBtn" title="Pop Out Timer (Real Floating Picture-in-Picture Window Across Tabs)">
               <i class="ri-picture-in-picture-2-line"></i> Pop-Out Window
             </button>
-            <button class="ctrl-btn btn-secondary-action" id="timerExtendBtn" title="Extend Time">
-              <i class="ri-time-line"></i> +5m
+            <button class="ctrl-btn btn-secondary-action" id="timerExtendBtn" title="Adjust / Extend Time">
+              <i class="ri-time-line"></i> ⏱️ Adjust Time
             </button>
             <button class="ctrl-btn btn-complete-task" id="timerCompleteBtn" title="Complete Task">
               <i class="ri-checkbox-circle-line"></i> Finish Task
@@ -297,11 +295,13 @@
 
           <!-- Quick Extend Dropdown Pill -->
           <div class="extend-pill-group hidden" id="extendPillGroup">
-            <span>Quick Extend:</span>
+            <span>Adjust Time:</span>
+            <button class="extend-chip" data-mins="-10">-10m</button>
+            <button class="extend-chip" data-mins="-5">-5m</button>
             <button class="extend-chip" data-mins="5">+5m</button>
             <button class="extend-chip" data-mins="10">+10m</button>
             <button class="extend-chip" data-mins="15">+15m</button>
-            <button class="extend-chip" data-mins="25">+25m</button>
+            <button class="extend-chip btn-custom-edit-time" id="setCustomTimeBtn">✍️ Set Exact Mins</button>
           </div>
 
           <!-- Inspire Me Pop-Up Launcher Box -->
