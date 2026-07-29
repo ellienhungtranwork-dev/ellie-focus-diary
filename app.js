@@ -532,6 +532,30 @@
       renderTasks();
     });
 
+    const autoCascadeAllBtn = document.getElementById('autoCascadeAllBtn');
+    if (autoCascadeAllBtn) {
+      autoCascadeAllBtn.addEventListener('click', () => {
+        autoCascadeShiftTimeline('morning');
+        autoCascadeShiftTimeline('afternoon');
+        autoCascadeShiftTimeline('evening');
+        alertToastNotification.classList.remove('hidden');
+        alertToastNotification.querySelector('h4').textContent = '⚡ Timelines Auto-Cascaded!';
+        alertToastNotification.querySelector('p').textContent = 'All task start & end times updated consecutively for all shifts!';
+        setTimeout(() => alertToastNotification.classList.add('hidden'), 4000);
+      });
+    }
+
+    document.querySelectorAll('.btn-cascade-shift').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const shift = btn.getAttribute('data-shift');
+        autoCascadeShiftTimeline(shift);
+        alertToastNotification.classList.remove('hidden');
+        alertToastNotification.querySelector('h4').textContent = `⚡ ${shift.toUpperCase()} Shift Cascaded!`;
+        alertToastNotification.querySelector('p').textContent = `Shift timeline updated consecutively!`;
+        setTimeout(() => alertToastNotification.classList.add('hidden'), 3000);
+      });
+    });
+
     // Inspire Me Pop-Up Modal Launcher
     inspireMeBtn.addEventListener('click', openInspireModal);
     closeInspireModalBtn.addEventListener('click', () => inspireModalBackdrop.classList.add('hidden'));
@@ -1126,9 +1150,7 @@
     const timeInput = item.querySelector('.inline-start-time-input');
     timeInput.addEventListener('change', (e) => {
       task.startTime = e.target.value;
-      task.endTime = calculateTaskEndTime(task.startTime, task.durationPlannedMin);
-      saveState();
-      renderTasks();
+      autoCascadeShiftTimeline(task.shift, e.target.value);
     });
 
     item.querySelector('.btn-move-up').addEventListener('click', () => moveTask(task.id, -1));
@@ -1152,6 +1174,41 @@
     return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
   }
 
+  function autoCascadeShiftTimeline(shiftName, forceStartTime = null) {
+    const shiftTasks = state.tasks.filter(t => (t.date === TODAY_STR || t.status === 'pending') && t.shift === shiftName);
+    if (shiftTasks.length === 0) return;
+
+    let currentStartMins = null;
+
+    if (forceStartTime) {
+      const [h, m] = forceStartTime.split(':').map(Number);
+      currentStartMins = h * 60 + m;
+    } else if (shiftTasks[0].startTime) {
+      const [h, m] = shiftTasks[0].startTime.split(':').map(Number);
+      currentStartMins = h * 60 + m;
+    } else {
+      if (shiftName === 'morning') currentStartMins = 11 * 60;
+      else if (shiftName === 'afternoon') currentStartMins = 14 * 60;
+      else if (shiftName === 'evening') currentStartMins = 20 * 60;
+    }
+
+    shiftTasks.forEach(task => {
+      const startH = Math.floor((currentStartMins / 60) % 24);
+      const startM = Math.floor(currentStartMins % 60);
+      task.startTime = `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}`;
+
+      const endMins = currentStartMins + (task.durationPlannedMin || 30);
+      const endH = Math.floor((endMins / 60) % 24);
+      const endM = Math.floor(endMins % 60);
+      task.endTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+
+      currentStartMins = endMins;
+    });
+
+    saveState();
+    renderTasks();
+  }
+
   function moveTask(id, delta) {
     const index = state.tasks.findIndex(t => t.id === id);
     if (index < 0) return;
@@ -1160,8 +1217,8 @@
     const temp = state.tasks[index];
     state.tasks[index] = state.tasks[targetIndex];
     state.tasks[targetIndex] = temp;
-    saveState();
-    renderTasks();
+
+    autoCascadeShiftTimeline(temp.shift);
   }
 
   function deleteTask(id) {

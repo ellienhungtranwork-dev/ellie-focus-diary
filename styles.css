@@ -320,6 +320,28 @@ body {
   cursor: pointer;
 }
 
+.btn-cascade-chip {
+  background: linear-gradient(135deg, #f43f5e, #ec4899) !important;
+  color: #ffffff !important;
+  border-color: #f43f5e !important;
+}
+
+.btn-cascade-chip:hover {
+  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.4);
+}
+
+.btn-cascade-shift {
+  background: #ede9fe;
+  color: #7c3aed;
+  margin-right: 6px;
+  transition: var(--transition-fast);
+}
+
+.btn-cascade-shift:hover {
+  background: #7c3aed;
+  color: #ffffff;
+}
+
 .deadline-list { display: flex; flex-direction: column; gap: 8px; max-height: 125px; overflow-y: auto; }
 
 .deadline-item-chip {

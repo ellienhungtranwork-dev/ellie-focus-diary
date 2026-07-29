@@ -135,6 +135,7 @@
           <div class="sort-group">
             <button class="btn-sort-chip active-sort-btn" id="autoOrderTimeBtn" title="Auto order tasks from earliest to latest start time"><i class="ri-time-line"></i> ⏰ Auto-Order by Start Time</button>
             <button class="btn-sort-chip" id="sortPriorityBtn"><i class="ri-sort-asc"></i> Priority</button>
+            <button class="btn-sort-chip btn-cascade-all" id="autoCascadeAllBtn" title="Auto-calculate & cascade consecutive timelines for all tasks"><i class="ri-flashlight-fill text-pink"></i> ⚡ Auto-Cascade Timelines</button>
           </div>
         </div>
 
@@ -149,6 +150,7 @@
               </div>
             </div>
             <div class="shift-actions">
+              <button class="btn-xs-add btn-cascade-shift" data-shift="morning" title="Auto-cascade timeline for Morning shift"><i class="ri-flashlight-line"></i> Cascade Time</button>
               <span class="pom-counter"><strong id="morningPoms">0</strong> poms 🍅</span>
               <button class="btn-icon toggle-shift-btn"><i class="ri-arrow-up-s-line"></i></button>
             </div>
@@ -181,6 +183,7 @@
               </div>
             </div>
             <div class="shift-actions">
+              <button class="btn-xs-add btn-cascade-shift" data-shift="afternoon" title="Auto-cascade timeline for Afternoon shift"><i class="ri-flashlight-line"></i> Cascade Time</button>
               <span class="pom-counter"><strong id="afternoonPoms">0</strong> poms 🍅</span>
               <button class="btn-icon toggle-shift-btn"><i class="ri-arrow-down-s-line"></i></button>
             </div>
@@ -213,6 +216,7 @@
               </div>
             </div>
             <div class="shift-actions">
+              <button class="btn-xs-add btn-cascade-shift" data-shift="evening" title="Auto-cascade timeline for Evening shift"><i class="ri-flashlight-line"></i> Cascade Time</button>
               <span class="pom-counter"><strong id="eveningPoms">0</strong> poms 🍅</span>
               <button class="btn-icon toggle-shift-btn"><i class="ri-arrow-down-s-line"></i></button>
             </div>
