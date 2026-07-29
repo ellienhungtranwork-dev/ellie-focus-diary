@@ -58,6 +58,7 @@
   ];
 
   let state = {
+    lastActiveDate: TODAY_STR,
     dailyContext: {
       energyLevel: 'High',
       goals: [
@@ -190,6 +191,28 @@
   const hardDeadlinesList = document.getElementById('hardDeadlinesList');
   const addDeadlineBtn = document.getElementById('addDeadlineBtn');
   const aiConsultTriggerBtn = document.getElementById('aiConsultTriggerBtn');
+
+  // Screenshot Auto-fill Elements
+  const screenshotAutoFillBtn = document.getElementById('screenshotAutoFillBtn');
+  const screenshotModalBackdrop = document.getElementById('screenshotModalBackdrop');
+  const closeScreenshotModalBtn = document.getElementById('closeScreenshotModalBtn');
+  const cancelScreenshotModalBtn = document.getElementById('cancelScreenshotModalBtn');
+  const screenshotDropZone = document.getElementById('screenshotDropZone');
+  const screenshotFileInput = document.getElementById('screenshotFileInput');
+  const dropZoneContent = document.getElementById('dropZoneContent');
+  const screenshotPreviewContainer = document.getElementById('screenshotPreviewContainer');
+  const screenshotPreviewImg = document.getElementById('screenshotPreviewImg');
+  const removeScreenshotBtn = document.getElementById('removeScreenshotBtn');
+  const ocrStatusBar = document.getElementById('ocrStatusBar');
+  const ocrStatusText = document.getElementById('ocrStatusText');
+  const ocrProgressBar = document.getElementById('ocrProgressBar');
+  const ocrResultGrid = document.getElementById('ocrResultGrid');
+  const ocrRawTextArea = document.getElementById('ocrRawTextArea');
+  const reparseOcrBtn = document.getElementById('reparseOcrBtn');
+  const parsedTasksCount = document.getElementById('parsedTasksCount');
+  const parsedTasksList = document.getElementById('parsedTasksList');
+  const confirmImportTasksBtn = document.getElementById('confirmImportTasksBtn');
+  let currentParsedTasks = [];
 
   // Shifts Lists
   const morningTaskList = document.getElementById('morningTaskList');
@@ -344,6 +367,7 @@
   // --- INITIALIZATION ---
   function init() {
     loadState();
+    checkNewDayTransition();
     setupLiveClock();
     setupEventListeners();
     renderAll();
@@ -351,6 +375,7 @@
   }
 
   function saveState() {
+    state.lastActiveDate = TODAY_STR;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
@@ -363,6 +388,15 @@
       } catch (e) {
         console.error('Failed to load state:', e);
       }
+    }
+  }
+
+  // Automatic New Day Transition Check (Safeguards Past Data)
+  function checkNewDayTransition() {
+    if (state.lastActiveDate && state.lastActiveDate !== TODAY_STR) {
+      state.lastActiveDate = TODAY_STR;
+      state.activeTaskId = null;
+      saveState();
     }
   }
 
@@ -517,6 +551,70 @@
 
     sendGeminiQueryBtn.addEventListener('click', handleGeminiCustomQuery);
 
+    // Screenshot Auto-fill Event Listeners
+    if (screenshotAutoFillBtn) {
+      screenshotAutoFillBtn.addEventListener('click', () => {
+        resetScreenshotModal();
+        screenshotModalBackdrop.classList.remove('hidden');
+      });
+    }
+    if (closeScreenshotModalBtn) closeScreenshotModalBtn.addEventListener('click', () => screenshotModalBackdrop.classList.add('hidden'));
+    if (cancelScreenshotModalBtn) cancelScreenshotModalBtn.addEventListener('click', () => screenshotModalBackdrop.classList.add('hidden'));
+    
+    if (screenshotDropZone) {
+      screenshotDropZone.addEventListener('click', (e) => {
+        if (e.target.closest('#removeScreenshotBtn')) return;
+        screenshotFileInput.click();
+      });
+      screenshotFileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          handleImageFileSelect(e.target.files[0]);
+        }
+      });
+      screenshotDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        screenshotDropZone.classList.add('dragover');
+      });
+      screenshotDropZone.addEventListener('dragleave', () => screenshotDropZone.classList.remove('dragover'));
+      screenshotDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        screenshotDropZone.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleImageFileSelect(e.dataTransfer.files[0]);
+        }
+      });
+    }
+
+    if (removeScreenshotBtn) {
+      removeScreenshotBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetScreenshotModal();
+      });
+    }
+
+    if (reparseOcrBtn) {
+      reparseOcrBtn.addEventListener('click', () => {
+        const text = ocrRawTextArea.value || '';
+        parseAndDisplayTasks(text);
+      });
+    }
+
+    if (confirmImportTasksBtn) {
+      confirmImportTasksBtn.addEventListener('click', () => {
+        if (currentParsedTasks.length === 0) return;
+        
+        state.tasks.push(...currentParsedTasks);
+        saveState();
+        renderTasks();
+        screenshotModalBackdrop.classList.add('hidden');
+        
+        alertToastNotification.classList.remove('hidden');
+        alertToastNotification.querySelector('h4').textContent = '🎉 Import Tasks Thành Công!';
+        alertToastNotification.querySelector('p').innerHTML = `Đã tự động thêm <strong>${currentParsedTasks.length} tasks</strong> từ ảnh chụp màn hình vào Web Focus!`;
+        setTimeout(() => alertToastNotification.classList.add('hidden'), 5000);
+      });
+    }
+
     // Short Break Modal
     triggerShortBreakBtn.addEventListener('click', () => breakModalBackdrop.classList.remove('hidden'));
     closeBreakModalBtn.addEventListener('click', () => breakModalBackdrop.classList.add('hidden'));
@@ -661,7 +759,6 @@
       }
     }
 
-    // Standard Window.open Fallback for Browsers without PiP
     if (!externalPopWindow || externalPopWindow.closed) {
       externalPopWindow = window.open('', 'EllieFocusTimerWindow', 'width=340,height=220,resizable=yes,scrollbars=no');
       if (externalPopWindow) {
@@ -731,7 +828,6 @@
   function handleStartBreakAndShiftSchedule() {
     const breakMins = selectedBreakMins || 5;
 
-    // Shift all subsequent task start times forward by breakMins
     state.tasks.forEach(t => {
       if (t.startTime && t.status !== 'completed') {
         const [h, m] = t.startTime.split(':').map(Number);
@@ -743,7 +839,6 @@
       }
     });
 
-    // Start Break Countdown
     state.timer.mode = 'break';
     state.timer.remainingSecs = breakMins * 60;
     state.timer.initialDurationSecs = breakMins * 60;
@@ -755,7 +850,6 @@
     startTimer();
   }
 
-  // Floating Timer Bar Setup on Scroll/Resize
   function setupScrollAndResizeListeners() {
     function checkFloatingTimer() {
       const isMobile = window.innerWidth <= 900;
@@ -784,7 +878,6 @@
     lofiAudioFrame.src = `https://www.youtube-nocookie.com/embed/${videoId}${autoPlayParam}`;
   }
 
-  // --- TAB SWITCHING ---
   function switchTab(tab) {
     if (tab === 'workspace') {
       tabWorkspaceBtn.classList.add('active');
@@ -800,7 +893,6 @@
     }
   }
 
-  // --- RENDER ALL ---
   function renderAll() {
     renderEnergyButtons();
     renderHardDeadlines();
@@ -887,7 +979,7 @@
     }
   }
 
-  // --- RENDER TASKS WITH FILTER & POMODORO AUTO-CALCULATOR ---
+  // RENDER TASKS (SHOWING ONLY TODAY'S ACTIVE WORKSPACE TASKS)
   function renderTasks() {
     morningTaskList.innerHTML = '';
     afternoonTaskList.innerHTML = '';
@@ -897,7 +989,10 @@
     const shiftPoms = { morning: 0, afternoon: 0, evening: 0 };
     const shiftFocusMins = { morning: 0, afternoon: 0, evening: 0 };
 
-    state.tasks.forEach((task, index) => {
+    // Workspace shows tasks created today or active pending tasks
+    const todayWorkspaceTasks = state.tasks.filter(t => t.date === TODAY_STR || t.status === 'pending');
+
+    todayWorkspaceTasks.forEach((task, index) => {
       if (state.filterPriority !== 'all' && task.priority !== state.filterPriority) return;
       if (state.filterCognitive !== 'all' && task.cognitiveLoad !== state.filterCognitive) return;
 
@@ -1127,7 +1222,6 @@
       popoutPlayIcon.className = 'ri-play-fill';
     }
 
-    // Sync to external popout window if opened
     if (externalPopWindow && !externalPopWindow.closed) {
       const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
       externalPopWindow.postMessage({
@@ -1188,7 +1282,7 @@
     clearInterval(timerInterval);
     timerPlayIcon.className = 'ri-play-fill';
     floatingPlayIcon.className = 'ri-play-fill';
-    popoutPlayIcon.className = 'ri-play-fill';
+    popoutPlayIcon.className = 'ri-pause-fill';
     saveState();
   }
 
@@ -1205,7 +1299,6 @@
     saveState();
   }
 
-  // 5-MINUTES REMAINING AUDIO CHIME ALERT ("TING" SOUND)
   function trigger5MinWarning() {
     alertToastNotification.classList.remove('hidden');
     play5MinTingChime();
@@ -1406,7 +1499,6 @@
       const elapsedSecs = state.timer.initialDurationSecs - state.timer.remainingSecs + state.timer.overtimeSecs;
       activeTask.focusMinsDone = Math.round(elapsedSecs / 60);
 
-      // Trigger Congrats Pop-Up Modal
       congratsTaskTitle.textContent = activeTask.title;
       congratsMeta.textContent = `You focused for ${activeTask.focusMinsDone || activeTask.durationPlannedMin} minutes on this session!`;
       congratsDeliverableBox.innerHTML = `<span>✅ Deliverable Saved: "${escapeHtml(finalOutput)}"</span>`;
@@ -1419,7 +1511,7 @@
     renderAll();
   }
 
-  // --- GEMINI AI CONSULT ENGINE (REAL API FETCH CALL FIX + RICH FALLBACK) ---
+  // --- GEMINI AI CONSULT ENGINE ---
   async function openAiConsultModal() {
     const energy = state.dailyContext.energyLevel || 'High';
     const goals = state.dailyContext.goals || [];
@@ -1627,7 +1719,7 @@
     }
   }
 
-  // --- ANALYTICS RENDER WITH DATE FILTER & DETAILED DISTRACTION LOG TABLE ---
+  // --- ANALYTICS RENDER (MULTIDATE PERMANENT RETENTION & FILTER) ---
   function renderAnalytics() {
     const range = state.analyticsDateRange || '7days';
 
@@ -1817,6 +1909,215 @@
   function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Global Clipboard Paste Listener (Ctrl + V)
+  document.addEventListener('paste', (e) => {
+    if (!e.clipboardData || !e.clipboardData.items) return;
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const blob = items[i].getAsFile();
+        resetScreenshotModal();
+        if (screenshotModalBackdrop) screenshotModalBackdrop.classList.remove('hidden');
+        handleImageFileSelect(blob);
+        e.preventDefault();
+        break;
+      }
+    }
+  });
+
+  function resetScreenshotModal() {
+    if (!screenshotFileInput) return;
+    screenshotFileInput.value = '';
+    dropZoneContent.classList.remove('hidden');
+    screenshotPreviewContainer.classList.add('hidden');
+    screenshotPreviewImg.src = '';
+    ocrStatusBar.classList.add('hidden');
+    ocrResultGrid.classList.add('hidden');
+    ocrRawTextArea.value = '';
+    parsedTasksList.innerHTML = '';
+    parsedTasksCount.textContent = '0';
+    confirmImportTasksBtn.classList.add('hidden');
+    currentParsedTasks = [];
+  }
+
+  function handleImageFileSelect(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      screenshotPreviewImg.src = e.target.result;
+      dropZoneContent.classList.add('hidden');
+      screenshotPreviewContainer.classList.remove('hidden');
+      runOcrAndParsing(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function runOcrAndParsing(imageSource) {
+    ocrStatusBar.classList.remove('hidden');
+    ocrResultGrid.classList.add('hidden');
+    ocrProgressBar.style.width = '15%';
+    ocrStatusText.textContent = 'Khởi động máy quét OCR Tesseract...';
+
+    try {
+      if (typeof Tesseract !== 'undefined') {
+        ocrStatusText.textContent = 'Đang nhận diện chữ tiếng Việt & Anh từ ảnh...';
+        ocrProgressBar.style.width = '45%';
+        const ret = await Tesseract.recognize(imageSource, 'vie+eng', {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              const pct = Math.round(m.progress * 100);
+              ocrProgressBar.style.width = Math.max(20, pct) + '%';
+              ocrStatusText.textContent = `Đang quét OCR (${pct}%)...`;
+            }
+          }
+        });
+        
+        ocrProgressBar.style.width = '100%';
+        ocrStatusText.textContent = 'Quét xong! Đang phân tích danh sách task...';
+        const text = ret.data.text || '';
+        ocrRawTextArea.value = text;
+        
+        setTimeout(() => {
+          ocrStatusBar.classList.add('hidden');
+          parseAndDisplayTasks(text);
+        }, 300);
+      } else {
+        ocrProgressBar.style.width = '100%';
+        ocrStatusText.textContent = 'Vui lòng dán văn bản trực tiếp vào ô bên dưới:';
+        ocrRawTextArea.value = '';
+        setTimeout(() => {
+          ocrStatusBar.classList.add('hidden');
+          ocrResultGrid.classList.remove('hidden');
+        }, 300);
+      }
+    } catch (err) {
+      console.error('OCR error:', err);
+      ocrStatusText.textContent = 'Không thể tự quét tự động. Bạn có thể dán văn bản trực tiếp vào ô dưới!';
+      setTimeout(() => {
+        ocrStatusBar.classList.add('hidden');
+        ocrResultGrid.classList.remove('hidden');
+      }, 500);
+    }
+  }
+
+  function parseAndDisplayTasks(rawText) {
+    ocrResultGrid.classList.remove('hidden');
+    currentParsedTasks = parseTasksFromText(rawText);
+    renderParsedTasksList(currentParsedTasks);
+  }
+
+  function parseTasksFromText(text) {
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    const results = [];
+    let currentShift = 'morning';
+    
+    lines.forEach((line, idx) => {
+      const lower = line.toLowerCase();
+      
+      if (lower.includes('chiều') || lower.includes('afternoon') || lower.includes('shift 2') || lower.includes('block 2') || /1[4-9]:\d\d/.test(lower) || /[2-6]pm/.test(lower)) {
+        currentShift = 'afternoon';
+      } else if (lower.includes('tối') || lower.includes('evening') || lower.includes('personal') || lower.includes('shift 3') || lower.includes('block 3') || /2[0-3]:\d\d/.test(lower) || /[7-9]pm|10pm|11pm/.test(lower)) {
+        currentShift = 'evening';
+      } else if (lower.includes('sáng') || lower.includes('morning') || lower.includes('shift 1') || lower.includes('block 1') || /1[0-2]:\d\d/.test(lower)) {
+        currentShift = 'morning';
+      }
+      
+      if (/^(morning|afternoon|evening|oac|personal|block \d|shift \d|chế độ|nghỉ trưa|ăn trưa)/i.test(line) && line.length < 35 && !line.includes('-') && !line.includes(':')) {
+        return;
+      }
+      
+      let duration = 30;
+      const durationMatch = line.match(/(\d+)\s*(phút|ph|mins|min|m)\b/i);
+      if (durationMatch) {
+        duration = parseInt(durationMatch[1], 10);
+      } else {
+        const hourMatch = line.match(/(\d+)\s*h\b/i);
+        if (hourMatch) {
+          duration = parseInt(hourMatch[1], 10) * 60;
+        }
+      }
+      
+      let priority = 'P2';
+      if (/high|urgent|gấp|p1|🔴/i.test(line)) priority = 'P1';
+      else if (/low|quick win|nhẹ|p3|🟢/i.test(line)) priority = 'P3';
+      
+      let category = 'Career/Work';
+      if (/personal|tối|pack đồ|ăn sáng|ăn tối|nấu cơm|đặt xe/i.test(line)) category = 'Personal/Life';
+      else if (/sourcing|delivery|outreach/i.test(line)) category = 'Career/Work';
+      else if (/am|client|contract|sendout|apply/i.test(line)) category = 'Career/Work';
+      else if (/bd|email|linkedin/i.test(line)) category = 'Career/Work';
+      else if (/internal|họp|bài giảng|check-in/i.test(line)) category = 'Internal/Admin';
+      
+      let cleanTitle = line
+        .replace(/^[\-\*\+\•\d\.\:\s]+/, '')
+        .replace(/\b(high|medium|low|p1|p2|p3)\b/gi, '')
+        .replace(/\(\d+ph|\d+phút|\d+mins|\d+m\)/gi, '')
+        .trim();
+        
+      if (cleanTitle.length > 3) {
+        results.push({
+          id: 'task_' + Date.now() + '_' + idx,
+          date: TODAY_STR,
+          shift: currentShift,
+          project: category.includes('Personal') ? 'Personal Life' : 'Career OS',
+          title: cleanTitle,
+          goal: 'Complete task milestone',
+          details: 'Auto-extracted from screenshot OCR',
+          category: category,
+          cognitiveLoad: priority === 'P1' ? 'Brain-heavy' : 'Routine',
+          priority: priority,
+          durationPlannedMin: duration,
+          focusMinsDone: 0,
+          status: 'pending',
+          output: '',
+          linkOutput: '',
+          fileOutput: '',
+          distractions: []
+        });
+      }
+    });
+    
+    return results;
+  }
+
+  function renderParsedTasksList(parsedTasks) {
+    if (!parsedTasksList) return;
+    parsedTasksList.innerHTML = '';
+    parsedTasksCount.textContent = parsedTasks.length;
+    
+    if (parsedTasks.length === 0) {
+      parsedTasksList.innerHTML = `<div style="padding: 16px; text-align: center; color: #94a3b8; font-size: 13px;">Không tìm thấy task hợp lệ từ văn bản/ảnh. Bạn có thể tự dán danh sách task dạng dòng vào ô bên trái!</div>`;
+      confirmImportTasksBtn.classList.add('hidden');
+      return;
+    }
+    
+    parsedTasks.forEach((t, i) => {
+      const card = document.createElement('div');
+      card.className = 'parsed-task-card';
+      card.innerHTML = `
+        <div class="parsed-task-info">
+          <h5>${escapeHtml(t.title)}</h5>
+          <div class="parsed-task-meta">
+            <span class="badge-shift">${t.shift.toUpperCase()}</span>
+            <span>⏱️ ${t.durationPlannedMin}m</span>
+            <span>🏷️ ${t.category}</span>
+            <span>${t.priority === 'P1' ? '🔴 P1' : t.priority === 'P2' ? '🟡 P2' : '🟢 P3'}</span>
+          </div>
+        </div>
+        <button class="btn-dl-action btn-delete-parsed" data-index="${i}" title="Remove"><i class="ri-close-line"></i></button>
+      `;
+      
+      card.querySelector('.btn-delete-parsed').addEventListener('click', () => {
+        currentParsedTasks.splice(i, 1);
+        renderParsedTasksList(currentParsedTasks);
+      });
+      
+      parsedTasksList.appendChild(card);
+    });
+    
+    confirmImportTasksBtn.classList.remove('hidden');
   }
 
   document.addEventListener('DOMContentLoaded', init);

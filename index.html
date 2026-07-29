@@ -15,6 +15,9 @@
 
   <!-- Main Stylesheet -->
   <link rel="stylesheet" href="styles.css">
+
+  <!-- Tesseract.js OCR Engine for Screenshot Auto-fill -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
   <div class="app-container">
@@ -61,7 +64,10 @@
           </div>
         </div>
 
-        <div class="checkin-item flex-grow text-right">
+        <div class="checkin-item flex-grow text-right" style="display: flex; gap: 10px; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
+          <button class="btn-screenshot-autofill" id="screenshotAutoFillBtn" title="Press Ctrl+V anywhere or upload screenshot">
+            <i class="ri-camera-lens-line"></i> 📸 Auto-fill from Screenshot
+          </button>
           <button class="btn-ai-consult" id="aiConsultTriggerBtn">
             <i class="ri-brain-fill"></i> ✨ AI Morning Consultant (Gemini)
           </button>
@@ -874,6 +880,66 @@
       <div class="modal-footer">
         <button type="button" class="btn-cancel" id="copyGSheetClipboardBtn"><i class="ri-file-copy-line"></i> Copy TSV to Clipboard</button>
         <button type="button" class="btn-submit btn-success" id="confirmSyncGsheetBtn"><i class="ri-cloud-upload-line"></i> Sync Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screenshot OCR & Auto-fill Modal -->
+  <div class="modal-backdrop hidden" id="screenshotModalBackdrop">
+    <div class="modal-card modal-padded modal-lg">
+      <div class="modal-header">
+        <h3><i class="ri-camera-lens-fill text-pink"></i> 📸 Auto-fill Tasks from Screenshot / Image</h3>
+        <button class="modal-close-btn" id="closeScreenshotModalBtn">&times;</button>
+      </div>
+
+      <div class="modal-body-padding">
+        <p class="modal-subtext mb-3">
+          Chụp ảnh màn hình (Snip/Screenshot) danh sách công việc, dán (<strong>Ctrl + V</strong>) trực tiếp vào bất kỳ đâu trên trang web hoặc kéo thả ảnh vào khung dưới đây!
+        </p>
+
+        <!-- Drop & Paste Zone -->
+        <div class="screenshot-drop-zone" id="screenshotDropZone">
+          <input type="file" id="screenshotFileInput" accept="image/*" class="hidden" />
+          <div class="drop-zone-content" id="dropZoneContent">
+            <i class="ri-image-add-line drop-zone-icon"></i>
+            <h4>Bấm để chọn file ảnh hoặc nhấn <span>Ctrl + V</span> để Dán Ảnh</h4>
+            <p>Hỗ trợ ảnh PNG, JPG, WebP từ Snipping Tool, Windows / Mac / Zalo / Messenger</p>
+          </div>
+          <div class="preview-container hidden" id="screenshotPreviewContainer">
+            <img id="screenshotPreviewImg" src="" alt="Screenshot preview" />
+            <button class="btn-remove-img" id="removeScreenshotBtn"><i class="ri-close-line"></i> Đổi ảnh khác</button>
+          </div>
+        </div>
+
+        <!-- OCR Status Bar -->
+        <div class="ocr-status-bar hidden mt-3" id="ocrStatusBar">
+          <div class="spinner-small"></div>
+          <span id="ocrStatusText">Đang quét ảnh OCR & bóc tách danh sách task...</span>
+          <div class="ocr-progress-bg"><div class="ocr-progress-bar" id="ocrProgressBar"></div></div>
+        </div>
+
+        <!-- Extracted Text & Parsed Tasks Preview Grid -->
+        <div class="ocr-result-grid hidden mt-3" id="ocrResultGrid">
+          <div class="ocr-text-col">
+            <label class="section-label"><i class="ri-file-text-line"></i> Văn bản quét được (Có thể sửa/dán trực tiếp):</label>
+            <textarea id="ocrRawTextArea" rows="9" placeholder="Dữ liệu văn bản từ ảnh chụp màn hình..."></textarea>
+            <button class="btn-xs-action mt-2" id="reparseOcrBtn"><i class="ri-refresh-line"></i> Bóc tách lại Tasks</button>
+          </div>
+
+          <div class="parsed-tasks-col">
+            <label class="section-label"><i class="ri-list-check-3"></i> Tasks nhận diện được (<span id="parsedTasksCount">0</span> tasks):</label>
+            <div class="parsed-tasks-list" id="parsedTasksList">
+              <!-- Dynamic parsed task items -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" id="cancelScreenshotModalBtn">Hủy</button>
+        <button type="button" class="btn-submit btn-success hidden" id="confirmImportTasksBtn">
+          <i class="ri-add-circle-line"></i> Import Tasks vào Web Focus
+        </button>
       </div>
     </div>
   </div>
