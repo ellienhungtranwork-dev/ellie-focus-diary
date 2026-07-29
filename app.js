@@ -958,15 +958,24 @@
 
     dlList.forEach(dl => {
       const chip = document.createElement('div');
-      chip.className = 'deadline-item-chip';
+      chip.className = 'deadline-item-chip' + (dl.completed ? ' completed' : '');
       chip.innerHTML = `
-        <span>${escapeHtml(dl.title)}</span>
+        <div class="deadline-title-group">
+          <input type="checkbox" class="deadline-checkbox" data-id="${dl.id}" ${dl.completed ? 'checked' : ''} title="Mark Done" />
+          <span class="deadline-title-text ${dl.completed ? 'strike-through' : ''}">${escapeHtml(dl.title)}</span>
+        </div>
         <div class="deadline-actions">
           <span class="deadline-time-badge">⏰ ${escapeHtml(dl.time)}</span>
           <button class="btn-dl-action btn-edit-dl" data-id="${dl.id}" title="Edit"><i class="ri-edit-line"></i></button>
           <button class="btn-dl-action btn-delete-dl" data-id="${dl.id}" title="Delete"><i class="ri-delete-bin-line"></i></button>
         </div>
       `;
+
+      chip.querySelector('.deadline-checkbox').addEventListener('change', (e) => {
+        dl.completed = e.target.checked;
+        saveState();
+        renderHardDeadlines();
+      });
 
       chip.querySelector('.btn-edit-dl').addEventListener('click', () => openDeadlineModal(dl));
       chip.querySelector('.btn-delete-dl').addEventListener('click', () => deleteDeadline(dl.id));
