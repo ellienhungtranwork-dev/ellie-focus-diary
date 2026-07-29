@@ -1107,8 +1107,8 @@
     const shiftPoms = { morning: 0, afternoon: 0, evening: 0 };
     const shiftFocusMins = { morning: 0, afternoon: 0, evening: 0 };
 
-    // Workspace shows tasks created today or active pending tasks
-    const todayWorkspaceTasks = state.tasks.filter(t => t.date === TODAY_STR || t.status === 'pending');
+    // Workspace shows tasks created today or active non-completed tasks
+    const todayWorkspaceTasks = state.tasks.filter(t => t.date === TODAY_STR || t.status === 'pending' || t.status === 'carried_over' || t.status === 'in_progress');
 
     todayWorkspaceTasks.forEach((task, index) => {
       if (state.filterPriority !== 'all' && task.priority !== state.filterPriority) return;
@@ -1150,6 +1150,10 @@
     let cognitiveBadge = '';
     if (task.cognitiveLoad === 'Brain-heavy') cognitiveBadge = `<span class="badge badge-brain">🧠 Brain</span>`;
 
+    let statusBadge = '';
+    if (task.status === 'carried_over') statusBadge = `<span class="badge badge-carried-over" title="Carried over to next day">🔄 Carry Over</span>`;
+    else if (task.status === 'in_progress') statusBadge = `<span class="badge badge-in-progress" title="Partially completed">⏸️ In Progress</span>`;
+
     const calculatedEndTime = calculateTaskEndTime(task.startTime, task.durationPlannedMin);
     const isOvertime = task.focusMinsDone > task.durationPlannedMin;
     const timeStatusClass = isOvertime ? 'time-range-red' : 'time-range-green';
@@ -1160,6 +1164,7 @@
           <div class="task-badges">
             <span class="badge badge-cat">${escapeHtml(task.category)}</span>
             ${task.project ? `<span class="badge badge-proj">📁 ${escapeHtml(task.project)}</span>` : ''}
+            ${statusBadge}
             ${cognitiveBadge}
             ${priorityBadge}
             <span class="badge badge-pom">🍅 ${pomsNeeded} pom${pomsNeeded > 1 ? 's' : ''}</span>
@@ -1661,6 +1666,12 @@
     if (!state.activeTaskId) return;
     pauseTimer();
     const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
+    
+    const statusSelect = document.getElementById('taskCompletionStatusSelect');
+    if (statusSelect) {
+      statusSelect.value = activeTask.status === 'completed' ? 'completed' : (activeTask.status || 'completed');
+    }
+
     taskFinalOutputInput.value = activeTask.output || '';
     taskLinkOutputInput.value = activeTask.linkOutput || '';
     taskFileOutputInput.value = activeTask.fileOutput || '';
@@ -1681,20 +1692,25 @@
       return;
     }
 
+    const statusSelect = document.getElementById('taskCompletionStatusSelect');
+    const selectedStatus = statusSelect ? statusSelect.value : 'completed';
+
     const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
     if (activeTask) {
-      activeTask.status = 'completed';
+      activeTask.status = selectedStatus;
       activeTask.output = finalOutput;
       activeTask.linkOutput = taskLinkOutputInput.value.trim();
       activeTask.fileOutput = taskFileOutputInput.value.trim();
       activeTask.proofImage = taskProofDataInput.value || '';
 
       const elapsedSecs = state.timer.initialDurationSecs - state.timer.remainingSecs + state.timer.overtimeSecs;
-      activeTask.focusMinsDone = Math.round(elapsedSecs / 60);
+      activeTask.focusMinsDone = (activeTask.focusMinsDone || 0) + Math.round(elapsedSecs / 60);
+
+      const statusBadgeText = selectedStatus === 'completed' ? '✅ Fully Completed' : (selectedStatus === 'carried_over' ? '🔄 Carried Over to Tomorrow' : '⏸️ Saved In Progress');
 
       congratsTaskTitle.textContent = activeTask.title;
-      congratsMeta.textContent = `You focused for ${activeTask.focusMinsDone || activeTask.durationPlannedMin} minutes on this session!`;
-      congratsDeliverableBox.innerHTML = `<span>✅ Deliverable Saved: "${escapeHtml(finalOutput)}"</span>${activeTask.proofImage ? '<br><small>📷 Screenshot Proof Attached</small>' : ''}`;
+      congratsMeta.textContent = `Status: ${statusBadgeText} · Focused for ${activeTask.focusMinsDone || activeTask.durationPlannedMin} minutes!`;
+      congratsDeliverableBox.innerHTML = `<span>Summary Logged: "${escapeHtml(finalOutput)}"</span>${activeTask.proofImage ? '<br><small>📷 Screenshot Proof Attached</small>' : ''}`;
       congratsModalBackdrop.classList.remove('hidden');
     }
 

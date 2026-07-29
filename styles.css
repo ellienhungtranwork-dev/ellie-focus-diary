@@ -571,6 +571,27 @@ body {
 .badge-p2 { background: #fff8e1; color: #f57f17; }
 .badge-p3 { background: #e8f5e9; color: #2e7d32; }
 .badge-pom { background: #fff1f2; color: #e11d48; border: 1.5px solid #fecdd3; }
+.badge-carried-over { background: #f3e8ff; color: #7e22ce; border: 1.5px solid #d8b4fe; }
+.badge-in-progress { background: #ffedd5; color: #c2410c; border: 1.5px solid #fed7aa; }
+
+.form-control-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dark);
+  background: #ffffff;
+  outline: none;
+  transition: var(--transition-fast);
+}
+
+.form-control-select:focus {
+  border-color: var(--primary-pink);
+  box-shadow: 0 0 0 3px rgba(236, 64, 122, 0.15);
+}
 
 .task-timebox-control {
   display: inline-flex;
