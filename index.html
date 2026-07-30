@@ -65,8 +65,12 @@
         </div>
 
         <div class="checkin-item flex-grow text-right" style="display: flex; gap: 10px; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
-          <button class="btn-screenshot-autofill" id="screenshotAutoFillBtn" title="Press Ctrl+V anywhere or upload screenshot">
-            <i class="ri-camera-lens-line"></i> 📸 Auto-fill from Screenshot
+          <div class="workspace-date-picker-group" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.7); padding: 5px 12px; border-radius: 10px; border: 1px solid var(--border-color, #e0e0e0); backdrop-filter: blur(8px);">
+            <label for="workspaceDatePicker" style="font-size: 13px; font-weight: 700; color: #4a5568; cursor: pointer; display: flex; align-items: center; gap: 4px;"><i class="ri-calendar-event-fill text-pink"></i> Work Date:</label>
+            <input type="date" id="workspaceDatePicker" style="border: none; background: transparent; font-size: 13px; font-weight: 700; color: #1a202c; cursor: pointer; outline: none;" />
+          </div>
+          <button class="btn-screenshot-autofill" id="screenshotAutoFillBtn" title="Auto-fill tasks from Markdown or AG check-in table">
+            <i class="ri-file-text-line"></i> 📋 Auto-fill from Markdown / AG
           </button>
           <button class="btn-ai-consult" id="aiConsultTriggerBtn">
             <i class="ri-brain-fill"></i> ✨ AI Morning Consultant (Gemini)
@@ -343,14 +347,17 @@
           <h2><i class="ri-bar-chart-box-line"></i> Analytics & Focus Reports</h2>
           <p>Analyze your productivity trends, distraction patterns, and history</p>
         </div>
-        <div class="date-filter-group">
-          <label><i class="ri-calendar-event-line"></i> Date Range:</label>
+        <div class="date-filter-group" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <label><i class="ri-calendar-event-line"></i> Date Range Filter:</label>
           <select id="analyticsDateRangeSelect">
-            <option value="today">Today (July 28, 2026)</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="single">Single Date...</option>
             <option value="7days" selected>Last 7 Days (Weekly Overview)</option>
             <option value="30days">Last 30 Days (Monthly Overview)</option>
             <option value="all">All Time History</option>
           </select>
+          <input type="date" id="analyticsDatePicker" class="hidden" style="padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); font-size: 13px; font-weight: 600; color: #334155; outline: none;" />
         </div>
       </div>
 
@@ -913,32 +920,53 @@
     </div>
   </div>
 
-  <!-- Screenshot OCR & Auto-fill Modal -->
+  <!-- Markdown & Screenshot Auto-fill Modal -->
   <div class="modal-backdrop hidden" id="screenshotModalBackdrop">
     <div class="modal-card modal-padded modal-lg">
       <div class="modal-header">
-        <h3><i class="ri-camera-lens-fill text-pink"></i> 📸 Auto-fill Tasks from Screenshot / Image</h3>
+        <h3><i class="ri-file-text-fill text-pink"></i> 📋 Auto-fill Tasks từ Markdown / AG Check-in / Ảnh Screenshot</h3>
         <button class="modal-close-btn" id="closeScreenshotModalBtn">&times;</button>
       </div>
 
       <div class="modal-body-padding">
         <p class="modal-subtext mb-3">
-          Chụp ảnh màn hình (Snip/Screenshot) danh sách công việc, dán (<strong>Ctrl + V</strong>) trực tiếp vào bất kỳ đâu trên trang web hoặc kéo thả ảnh vào khung dưới đây!
+          Dán trực tiếp <strong>Bảng Markdown từ AG Daily Check-in</strong> vào ô bên dưới, hoặc bấm <strong>Ctrl + V</strong> dán ảnh screenshot / kéo thả file ảnh. Hệ thống sẽ tự động phân tích khung giờ, mã task và import vào ngày làm việc hiện tại!
         </p>
 
-        <!-- Drop & Paste Zone -->
-        <div class="screenshot-drop-zone" id="screenshotDropZone">
-          <input type="file" id="screenshotFileInput" accept="image/*" class="hidden" />
-          <div class="drop-zone-content" id="dropZoneContent">
-            <i class="ri-image-add-line drop-zone-icon"></i>
-            <h4>Bấm để chọn file ảnh hoặc nhấn <span>Ctrl + V</span> để Dán Ảnh</h4>
-            <p>Hỗ trợ ảnh PNG, JPG, WebP từ Snipping Tool, Windows / Mac / Zalo / Messenger</p>
+        <!-- Markdown Text Paste Box (Primary Mode) -->
+        <div class="markdown-paste-box mb-3" style="background: var(--card-bg, #f8fafc); border: 2px dashed #cbd5e1; border-radius: 12px; padding: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label class="section-label" style="margin-bottom:0; color: #1e293b; font-weight: 700;">
+              <i class="ri-code-s-slash-line text-pink"></i> Dán bảng Markdown hoặc danh sách văn bản tại đây:
+            </label>
+            <button type="button" class="btn-xs-action" id="pasteSampleMarkdownBtn" style="background: #e2e8f0; color: #334155; border: none; border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer; font-weight: 600;">
+              <i class="ri-clipboard-line"></i> Dán mẫu Bảng Markdown AG
+            </button>
           </div>
-          <div class="preview-container hidden" id="screenshotPreviewContainer">
-            <img id="screenshotPreviewImg" src="" alt="Screenshot preview" />
-            <button class="btn-remove-img" id="removeScreenshotBtn"><i class="ri-close-line"></i> Đổi ảnh khác</button>
+          <textarea id="ocrRawTextArea" rows="7" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font-family: monospace; font-size: 12px; line-height: 1.5; resize: vertical;" placeholder="| Khung Giờ | Mã Task | Mảng Công Việc | Chi Tiết Nhiệm Vụ | Thời Lượng | Độ Ưu Tiên | Trạng Thái |&#10;| 15:10 - 15:55 | BD011-01 | BD | Lọc connection LinkedIn Ellie | 45ph | High | [ ] |"></textarea>
+          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+            <button type="button" class="btn-submit" id="reparseOcrBtn" style="padding: 6px 14px; font-size: 13px;">
+              <i class="ri-magic-line"></i> Phân Tích Markdown Tasks
+            </button>
           </div>
         </div>
+
+        <!-- Drop & Paste Zone (Secondary OCR Option) -->
+        <details style="margin-top: 10px; margin-bottom: 15px;">
+          <summary style="cursor: pointer; font-weight: 600; font-size: 13px; color: #64748b;"><i class="ri-image-line"></i> Hoặc kéo thả / dán Ảnh Screenshot (OCR)</summary>
+          <div class="screenshot-drop-zone mt-2" id="screenshotDropZone">
+            <input type="file" id="screenshotFileInput" accept="image/*" class="hidden" />
+            <div class="drop-zone-content" id="dropZoneContent">
+              <i class="ri-image-add-line drop-zone-icon"></i>
+              <h4>Bấm để chọn file ảnh hoặc nhấn <span>Ctrl + V</span> để Dán Ảnh</h4>
+              <p>Hỗ trợ ảnh PNG, JPG, WebP từ Snipping Tool, Windows / Mac / Zalo / Messenger</p>
+            </div>
+            <div class="preview-container hidden" id="screenshotPreviewContainer">
+              <img id="screenshotPreviewImg" src="" alt="Screenshot preview" />
+              <button class="btn-remove-img" id="removeScreenshotBtn"><i class="ri-close-line"></i> Đổi ảnh khác</button>
+            </div>
+          </div>
+        </details>
 
         <!-- OCR Status Bar -->
         <div class="ocr-status-bar hidden mt-3" id="ocrStatusBar">
@@ -947,16 +975,10 @@
           <div class="ocr-progress-bg"><div class="ocr-progress-bar" id="ocrProgressBar"></div></div>
         </div>
 
-        <!-- Extracted Text & Parsed Tasks Preview Grid -->
+        <!-- Parsed Tasks Preview Grid -->
         <div class="ocr-result-grid hidden mt-3" id="ocrResultGrid">
-          <div class="ocr-text-col">
-            <label class="section-label"><i class="ri-file-text-line"></i> Văn bản quét được (Có thể sửa/dán trực tiếp):</label>
-            <textarea id="ocrRawTextArea" rows="9" placeholder="Dữ liệu văn bản từ ảnh chụp màn hình..."></textarea>
-            <button class="btn-xs-action mt-2" id="reparseOcrBtn"><i class="ri-refresh-line"></i> Bóc tách lại Tasks</button>
-          </div>
-
-          <div class="parsed-tasks-col">
-            <label class="section-label"><i class="ri-list-check-3"></i> Tasks nhận diện được (<span id="parsedTasksCount">0</span> tasks):</label>
+          <div class="parsed-tasks-col" style="width: 100%;">
+            <label class="section-label"><i class="ri-list-check-3"></i> Danh sách Tasks đã nhận diện (<span id="parsedTasksCount">0</span> tasks):</label>
             <div class="parsed-tasks-list" id="parsedTasksList">
               <!-- Dynamic parsed task items -->
             </div>

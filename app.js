@@ -604,6 +604,43 @@
     cancelDeadlineModalBtn.addEventListener('click', () => deadlineModalBackdrop.classList.add('hidden'));
     saveDeadlineBtn.addEventListener('click', handleSaveDeadline);
 
+    // Workspace Date Picker Listener
+    const workspaceDatePicker = document.getElementById('workspaceDatePicker');
+    if (workspaceDatePicker) {
+      if (!state.selectedDate) state.selectedDate = TODAY_STR;
+      workspaceDatePicker.value = state.selectedDate;
+      workspaceDatePicker.addEventListener('change', (e) => {
+        if (e.target.value) {
+          state.selectedDate = e.target.value;
+          saveState();
+          renderAll();
+        }
+      });
+    }
+
+    // Analytics Date Range & Date Picker Listener
+    const analyticsDatePicker = document.getElementById('analyticsDatePicker');
+    if (analyticsDateRangeSelect) {
+      analyticsDateRangeSelect.addEventListener('change', () => {
+        state.analyticsDateRange = analyticsDateRangeSelect.value;
+        if (analyticsDatePicker) {
+          if (analyticsDateRangeSelect.value === 'single') {
+            analyticsDatePicker.classList.remove('hidden');
+            if (!analyticsDatePicker.value) analyticsDatePicker.value = state.selectedDate || TODAY_STR;
+          } else {
+            analyticsDatePicker.classList.add('hidden');
+          }
+        }
+        saveState();
+        renderAnalytics();
+      });
+    }
+    if (analyticsDatePicker) {
+      analyticsDatePicker.addEventListener('change', () => {
+        renderAnalytics();
+      });
+    }
+
     // AI Consult & Gemini Chat
     aiConsultTriggerBtn.addEventListener('click', openAiConsultModal);
     geminiApiKeyInput.value = state.geminiApiKey || '';
@@ -614,7 +651,7 @@
 
     sendGeminiQueryBtn.addEventListener('click', handleGeminiCustomQuery);
 
-    // Screenshot Auto-fill Event Listeners
+    // Screenshot & Markdown Auto-fill Event Listeners
     if (screenshotAutoFillBtn) {
       screenshotAutoFillBtn.addEventListener('click', () => {
         resetScreenshotModal();
@@ -623,6 +660,28 @@
     }
     if (closeScreenshotModalBtn) closeScreenshotModalBtn.addEventListener('click', () => screenshotModalBackdrop.classList.add('hidden'));
     if (cancelScreenshotModalBtn) cancelScreenshotModalBtn.addEventListener('click', () => screenshotModalBackdrop.classList.add('hidden'));
+
+    // Sample AG Markdown Paste Button
+    const pasteSampleMarkdownBtn = document.getElementById('pasteSampleMarkdownBtn');
+    if (pasteSampleMarkdownBtn) {
+      pasteSampleMarkdownBtn.addEventListener('click', () => {
+        const sampleText = `| Khung Giờ | Mã Task | Mảng Công Việc | Chi Tiết Nhiệm Vụ Kế Hoạch | Thời Lượng | Độ Ưu Tiên | Trạng Thái | Ghi Chú Kế Hoạch & Kết Quả Mong Đợi |
+| :--- | :--- | :--- | :--- | :---: | :---: | :---: | :--- |
+| **14:50 - 15:10** | \`PS-10\` | Internal | Sắp xếp & lên danh sách chi tiết các loại tasks đầu ngày | 20ph | High | \`[x]\` | Daily note cập nhật chuẩn xác theo thứ tự ưu tiên |
+| **15:10 - 15:55** | \`BD011-01\` | BD | Lọc connection LinkedIn Ellie -> Builder/Startup Founder | 45ph | High | \`[ ]\` | Danh sách target leads Founder/Builder |
+| **15:55 - 16:25** | \`BD011-02\` | BD | Viết 1st outreach message trên LinkedIn | 30ph | High | \`[ ]\` | Mẫu 1st outreach message chuẩn hóa |
+| **16:25 - 16:50** | \`BD012-01\` | BD | Soạn & gửi 2 L1 messages + 2 L2 messages | 25ph | High | \`[ ]\` | Hoàn thành gửi 2 L1 messages & 2 L2 messages |
+| **16:50 - 17:50** | \`DL009-13\` | Delivery | Sourcing 30 CTO Elyx profiles còn lại | 60ph | High | \`[ ]\` | Danh sách 30 profiles CTO Elyx hoàn chỉnh |
+| **17:50 - 18:05** | \`AM043-02\` | AM | Phân loại job Rounds.so | 15ph | Medium | \`[ ]\` | Bảng phân loại & đánh giá tiêu chí |
+| **18:05 - 18:55** | \`DL031-01\` | Delivery | Sourcing 40 profiles job mới của Rounds | 50ph | High | \`[ ]\` | Danh sách 40 profiles ứng viên |
+| **18:55 - 19:25** | \`DL031-02\` | Delivery | Outreach ứng viên (Follow-up & Message) | 30ph | High | \`[ ]\` | Gửi message outreach đội ứng viên |`;
+
+        if (ocrRawTextArea) {
+          ocrRawTextArea.value = sampleText;
+          parseAndDisplayTasks(sampleText);
+        }
+      });
+    }
     
     if (screenshotDropZone) {
       screenshotDropZone.addEventListener('click', (e) => {
@@ -1097,7 +1156,7 @@
     }
   }
 
-  // RENDER TASKS (SHOWING ONLY TODAY'S ACTIVE WORKSPACE TASKS)
+  // RENDER TASKS (SHOWING WORKSPACE TASKS FOR SELECTED DATE + PAST UNFINISHED CARRIED OVER TASKS)
   function renderTasks() {
     morningTaskList.innerHTML = '';
     afternoonTaskList.innerHTML = '';
@@ -1107,10 +1166,18 @@
     const shiftPoms = { morning: 0, afternoon: 0, evening: 0 };
     const shiftFocusMins = { morning: 0, afternoon: 0, evening: 0 };
 
-    // Workspace shows tasks created today or active non-completed tasks
-    const todayWorkspaceTasks = state.tasks.filter(t => t.date === TODAY_STR || t.status === 'pending' || t.status === 'carried_over' || t.status === 'in_progress');
+    const activeDate = state.selectedDate || TODAY_STR;
+    const dateWorkspaceTasks = state.tasks.filter(t => {
+      const taskDate = t.date || TODAY_STR;
+      if (taskDate === activeDate) return true;
+      // Keep unfinished or carried_over tasks from previous days on the workspace board!
+      if (activeDate >= TODAY_STR && taskDate < activeDate && t.status !== 'completed') {
+        return true;
+      }
+      return false;
+    });
 
-    todayWorkspaceTasks.forEach((task, index) => {
+    dateWorkspaceTasks.forEach((task, index) => {
       if (state.filterPriority !== 'all' && task.priority !== state.filterPriority) return;
       if (state.filterCognitive !== 'all' && task.cognitiveLoad !== state.filterCognitive) return;
 
@@ -1151,8 +1218,14 @@
     if (task.cognitiveLoad === 'Brain-heavy') cognitiveBadge = `<span class="badge badge-brain">🧠 Brain</span>`;
 
     let statusBadge = '';
-    if (task.status === 'carried_over') statusBadge = `<span class="badge badge-carried-over" title="Carried over to next day">🔄 Carry Over</span>`;
-    else if (task.status === 'in_progress') statusBadge = `<span class="badge badge-in-progress" title="Partially completed">⏸️ In Progress</span>`;
+    const taskDate = task.date || TODAY_STR;
+    const isPastCarriedOver = taskDate < (state.selectedDate || TODAY_STR) && task.status !== 'completed';
+
+    if (task.status === 'carried_over' || isPastCarriedOver) {
+      statusBadge = `<span class="badge badge-carried-over" title="Task chưa xong từ ngày ${taskDate} được giữ lại cho hôm nay">🔄 Carry Over (${taskDate})</span>`;
+    } else if (task.status === 'in_progress') {
+      statusBadge = `<span class="badge badge-in-progress" title="Partially completed">⏸️ In Progress</span>`;
+    }
 
     const calculatedEndTime = calculateTaskEndTime(task.startTime, task.durationPlannedMin);
     const isOvertime = task.focusMinsDone > task.durationPlannedMin;
@@ -1184,6 +1257,7 @@
       </div>
       <div class="task-actions-right">
         <span style="font-size: 13px; font-weight: 800; color: #64748b; margin-right: 6px;">${task.durationPlannedMin}m</span>
+        <button class="btn-task-action btn-carry-task" data-id="${task.id}" title="${task.status === 'carried_over' ? 'Hủy Carry Over' : 'Chuyển Carry Over sang ngày mai/hôm nay'}"><i class="ri-refresh-line"></i></button>
         <button class="btn-task-action btn-move-up" data-id="${task.id}" title="Move Up"><i class="ri-arrow-up-line"></i></button>
         <button class="btn-task-action btn-move-down" data-id="${task.id}" title="Move Down"><i class="ri-arrow-down-line"></i></button>
         <button class="btn-task-action btn-edit-task" data-id="${task.id}" title="Edit Task"><i class="ri-edit-line"></i></button>
@@ -1200,6 +1274,16 @@
     timeInput.addEventListener('change', (e) => {
       task.startTime = e.target.value;
       autoCascadeShiftTimeline(task.shift, e.target.value);
+    });
+
+    item.querySelector('.btn-carry-task').addEventListener('click', () => {
+      if (task.status === 'carried_over') {
+        task.status = 'pending';
+      } else {
+        task.status = 'carried_over';
+      }
+      saveState();
+      renderTasks();
     });
 
     item.querySelector('.btn-move-up').addEventListener('click', () => moveTask(task.id, -1));
@@ -1931,22 +2015,31 @@
   // --- ANALYTICS RENDER (MULTIDATE PERMANENT RETENTION & FILTER) ---
   function renderAnalytics() {
     const range = state.analyticsDateRange || '7days';
+    const analyticsDatePicker = document.getElementById('analyticsDatePicker');
+    const singleDateVal = (analyticsDatePicker && analyticsDatePicker.value) ? analyticsDatePicker.value : (state.selectedDate || TODAY_STR);
 
     const now = new Date();
     const filteredTasks = state.tasks.filter(t => {
-      const taskDate = t.date ? new Date(t.date) : now;
+      const taskDateStr = t.date || TODAY_STR;
       if (range === 'today') {
-        return t.date === TODAY_STR || taskDate.toDateString() === now.toDateString();
+        return taskDateStr === TODAY_STR;
+      } else if (range === 'yesterday') {
+        const yest = new Date(now);
+        yest.setDate(yest.getDate() - 1);
+        const yestStr = yest.toISOString().split('T')[0];
+        return taskDateStr === yestStr;
+      } else if (range === 'single') {
+        return taskDateStr === singleDateVal;
       } else if (range === '7days') {
-        const diffTime = Math.abs(now - taskDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const tDate = new Date(taskDateStr);
+        const diffDays = Math.ceil(Math.abs(now - tDate) / (1000 * 60 * 60 * 24));
         return diffDays <= 7;
       } else if (range === '30days') {
-        const diffTime = Math.abs(now - taskDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const tDate = new Date(taskDateStr);
+        const diffDays = Math.ceil(Math.abs(now - tDate) / (1000 * 60 * 60 * 24));
         return diffDays <= 30;
       }
-      return true;
+      return true; // 'all'
     });
 
     let totalFocusMins = 0;
@@ -2250,7 +2343,134 @@
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
     const results = [];
     let currentShift = 'morning';
+    const targetDate = state.selectedDate || TODAY_STR;
     
+    // Check if input contains Markdown table rows (e.g. lines containing '|')
+    const tableLines = lines.filter(l => l.startsWith('|') || (l.includes('|') && (l.match(/\|/g) || []).length >= 3));
+
+    if (tableLines.length >= 2) {
+      tableLines.forEach((line, idx) => {
+        if (line.includes(':---') || line.includes('Khung Giờ') || line.includes('Mã Task') || line.includes('Giờ Bắt Đầu')) {
+          return;
+        }
+
+        const rawCols = line.split('|');
+        const cols = rawCols.map(c => c.trim().replace(/\*\*/g, '').replace(/`/g, '')).filter((c, i, arr) => i > 0 && i < arr.length - 1);
+        if (cols.length < 3) return;
+
+        // Col 0: Khung Giờ (e.g. "14:50 - 15:10")
+        const timeCol = cols[0] || '';
+        let startTime = '';
+        let endTime = '';
+        let shift = 'morning';
+
+        const timeMatch = timeCol.match(/(\d{1,2}:\d{2})\s*[\-\–\—]?\s*(\d{1,2}:\d{2})?/);
+        if (timeMatch) {
+          startTime = timeMatch[1].padStart(5, '0');
+          if (timeMatch[2]) endTime = timeMatch[2].padStart(5, '0');
+
+          const startHour = parseInt(startTime.split(':')[0], 10);
+          if (startHour >= 12 && startHour < 18) shift = 'afternoon';
+          else if (startHour >= 18 || startHour < 6) shift = 'evening';
+          else shift = 'morning';
+        }
+
+        // Col 1 & 2: Mã Task & Mảng Công Việc -> Project Name
+        const taskCode = cols[1] || '';
+        if (taskCode.toUpperCase() === 'BREAK') return;
+
+        const domainCol = cols[2] || '';
+        let category = 'Career/Work';
+        let project = 'Career OS';
+
+        if (/personal|cá nhân|life|pl/i.test(domainCol) || /^PL-/i.test(taskCode)) {
+          category = 'Life/Personal';
+          project = 'Personal Life';
+        } else if (/internal|nội bộ|admin|in/i.test(domainCol) || /^IN-/i.test(taskCode) || /^PS-/i.test(taskCode)) {
+          category = 'Admin/Ops';
+          project = 'Internal & Ops';
+        } else if (/growth|học tập|study/i.test(domainCol)) {
+          category = 'Growth/Study';
+          project = 'Skill Growth';
+        } else if (/creative|side/i.test(domainCol)) {
+          category = 'Creative/Side';
+          project = 'Sidequests';
+        } else if (/bd/i.test(domainCol) || /^BD/i.test(taskCode)) {
+          category = 'Career/Work';
+          project = 'BD Outreach';
+        } else if (/delivery|dl/i.test(domainCol) || /^DL/i.test(taskCode)) {
+          category = 'Career/Work';
+          project = 'Delivery Sourcing';
+        } else if (/am/i.test(domainCol) || /^AM/i.test(taskCode)) {
+          category = 'Career/Work';
+          project = 'Account Management';
+        }
+
+        // Col 3: Chi Tiết Nhiệm Vụ
+        const titleCol = cols[3] || '';
+        if (!titleCol) return;
+        const fullTitle = taskCode ? `[${taskCode}] ${titleCol}` : titleCol;
+
+        // Col 4: Thời lượng
+        let duration = 30;
+        const durCol = cols[4] || '';
+        const durMatch = durCol.match(/(\d+)/);
+        if (durMatch) {
+          duration = parseInt(durMatch[1], 10);
+        } else if (startTime && endTime) {
+          const [sh, sm] = startTime.split(':').map(Number);
+          const [eh, em] = endTime.split(':').map(Number);
+          const diffMins = (eh * 60 + em) - (sh * 60 + sm);
+          if (diffMins > 0) duration = diffMins;
+        }
+
+        // Col 5: Độ Ưu Tiên -> Priority & Cognitive Load
+        const priorityCol = cols[5] || '';
+        let priority = 'P2';
+        let cognitiveLoad = 'Routine';
+        if (/high|cao|p1|gấp/i.test(priorityCol)) {
+          priority = 'P1';
+          cognitiveLoad = 'Brain-heavy';
+        } else if (/low|thấp|p3|nhẹ/i.test(priorityCol)) {
+          priority = 'P3';
+          cognitiveLoad = 'Light';
+        }
+
+        // Col 6: Trạng Thái
+        const statusCol = cols[6] || '';
+        let status = 'pending';
+        if (statusCol.includes('[x]') || statusCol.includes('completed')) status = 'completed';
+        else if (statusCol.includes('[/]') || statusCol.includes('in_progress')) status = 'in_progress';
+
+        // Col 7: Ghi Chú Kế Hoạch & Kết Quả Mong Đợi -> Goal & Details
+        const detailsCol = cols[7] || '';
+
+        results.push({
+          id: 'task_' + Date.now() + '_' + idx,
+          date: targetDate,
+          shift: shift,
+          project: project,
+          title: fullTitle,
+          goal: detailsCol || 'Complete planned activity',
+          details: detailsCol ? `Ghi chú AG: ${detailsCol}` : '',
+          category: category,
+          cognitiveLoad: cognitiveLoad,
+          priority: priority,
+          startTime: startTime,
+          endTime: endTime,
+          durationPlannedMin: duration,
+          focusMinsDone: status === 'completed' ? duration : 0,
+          status: status,
+          output: status === 'completed' ? 'Completed via AG Check-in Import' : '',
+          linkOutput: '',
+          fileOutput: '',
+          distractions: []
+        });
+      });
+
+      if (results.length > 0) return results;
+    }
+
     lines.forEach((line, idx) => {
       const lower = line.toLowerCase();
       
@@ -2282,11 +2502,11 @@
       else if (/low|quick win|nhẹ|p3|🟢/i.test(line)) priority = 'P3';
       
       let category = 'Career/Work';
-      if (/personal|tối|pack đồ|ăn sáng|ăn tối|nấu cơm|đặt xe/i.test(line)) category = 'Personal/Life';
+      if (/personal|tối|pack đồ|ăn sáng|ăn tối|nấu cơm|đặt xe/i.test(line)) category = 'Life/Personal';
       else if (/sourcing|delivery|outreach/i.test(line)) category = 'Career/Work';
       else if (/am|client|contract|sendout|apply/i.test(line)) category = 'Career/Work';
       else if (/bd|email|linkedin/i.test(line)) category = 'Career/Work';
-      else if (/internal|họp|bài giảng|check-in/i.test(line)) category = 'Internal/Admin';
+      else if (/internal|họp|bài giảng|check-in/i.test(line)) category = 'Admin/Ops';
       
       let cleanTitle = line
         .replace(/^[\-\*\+\•\d\.\:\s]+/, '')
@@ -2297,12 +2517,12 @@
       if (cleanTitle.length > 3) {
         results.push({
           id: 'task_' + Date.now() + '_' + idx,
-          date: TODAY_STR,
+          date: targetDate,
           shift: currentShift,
           project: category.includes('Personal') ? 'Personal Life' : 'Career OS',
           title: cleanTitle,
           goal: 'Complete task milestone',
-          details: 'Auto-extracted from screenshot OCR',
+          details: 'Auto-extracted from text',
           category: category,
           cognitiveLoad: priority === 'P1' ? 'Brain-heavy' : 'Routine',
           priority: priority,
