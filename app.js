@@ -760,7 +760,13 @@
         }
       });
 
-      // Clear old uncompleted duplicates for activeDate if any exist with empty start times
+      // Sort tasks chronologically by startTime
+      state.tasks.sort((a, b) => {
+        if (!a.startTime) return 1;
+        if (!b.startTime) return -1;
+        return a.startTime.localeCompare(b.startTime);
+      });
+
       saveState();
       renderTasks();
       screenshotModalBackdrop.classList.add('hidden');
@@ -2626,6 +2632,7 @@
           <h5 style="margin:0 0 4px 0; font-size:14px; font-weight:700; ${isDone ? 'text-decoration:line-through; color:#64748b;' : ''}">${escapeHtml(t.title)}</h5>
           <div class="parsed-task-meta" style="display:flex; gap:6px; flex-wrap:wrap; font-size:11px;">
             <span class="badge-shift" style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-weight:700;">${t.shift.toUpperCase()}</span>
+            ${t.startTime ? `<span style="background:#fef3c7; color:#b45309; padding:2px 6px; border-radius:4px; font-weight:700;">⏰ ${t.startTime}${t.endTime ? ' ➔ ' + t.endTime : ''}</span>` : ''}
             <span>⏱️ ${t.durationPlannedMin}m</span>
             <span>🏷️ ${t.category}</span>
             <span>${t.priority === 'P1' ? '🔴 P1' : t.priority === 'P2' ? '🟡 P2' : '🟢 P3'}</span>
