@@ -722,7 +722,17 @@
     }
 
     function executeImportTasks() {
-      if (!currentParsedTasks || currentParsedTasks.length === 0) return;
+      if (!currentParsedTasks || currentParsedTasks.length === 0) {
+        const rawText = ocrRawTextArea ? ocrRawTextArea.value.trim() : '';
+        if (rawText) {
+          currentParsedTasks = parseTasksFromText(rawText);
+        }
+      }
+
+      if (!currentParsedTasks || currentParsedTasks.length === 0) {
+        alert('Vui lòng dán đoạn Markdown vào ô nhập và bấm "Phân Tích Markdown Tasks" trước khi bấm Import nhé!');
+        return;
+      }
       
       const activeDate = state.selectedDate || TODAY_STR;
       let updatedCount = 0;
