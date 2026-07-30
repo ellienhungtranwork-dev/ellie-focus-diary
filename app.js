@@ -724,14 +724,50 @@
     function executeImportTasks() {
       if (!currentParsedTasks || currentParsedTasks.length === 0) return;
       
-      state.tasks.push(...currentParsedTasks);
+      const activeDate = state.selectedDate || TODAY_STR;
+      let updatedCount = 0;
+      let createdCount = 0;
+
+      currentParsedTasks.forEach(newTask => {
+        // Extract task code prefix if any, e.g. [BD011-01]
+        const codeMatch = newTask.title.match(/\[([A-Z0-9\-]+)\]/i);
+        const taskCode = codeMatch ? codeMatch[1].toUpperCase() : null;
+        
+        // Find if there's an uncompleted existing task (either for today or carried over from yesterday)
+        const existingTask = state.tasks.find(t => {
+          if (t.status === 'completed') return false; // don't overwrite completed tasks
+          if (taskCode && t.title.toUpperCase().includes(`[${taskCode}]`)) return true;
+          return t.title.toLowerCase().trim() === newTask.title.toLowerCase().trim();
+        });
+
+        if (existingTask) {
+          // Update existing task with new date and fresh start/end times from AG!
+          existingTask.date = activeDate;
+          existingTask.shift = newTask.shift;
+          existingTask.startTime = newTask.startTime;
+          existingTask.endTime = newTask.endTime;
+          existingTask.durationPlannedMin = newTask.durationPlannedMin;
+          existingTask.priority = newTask.priority;
+          existingTask.cognitiveLoad = newTask.cognitiveLoad;
+          existingTask.category = newTask.category;
+          existingTask.project = newTask.project;
+          if (newTask.goal) existingTask.goal = newTask.goal;
+          if (newTask.status === 'completed') existingTask.status = 'completed';
+          updatedCount++;
+        } else {
+          state.tasks.push(newTask);
+          createdCount++;
+        }
+      });
+
+      // Clear old uncompleted duplicates for activeDate if any exist with empty start times
       saveState();
       renderTasks();
       screenshotModalBackdrop.classList.add('hidden');
       
       alertToastNotification.classList.remove('hidden');
-      alertToastNotification.querySelector('h4').textContent = '🎉 Import Tasks Thành Công!';
-      alertToastNotification.querySelector('p').innerHTML = `Đã tự động thêm <strong>${currentParsedTasks.length} tasks</strong> từ AG Markdown vào Web Focus!`;
+      alertToastNotification.querySelector('h4').textContent = '🎉 Đồng Bộ Smart Import Thành Công!';
+      alertToastNotification.querySelector('p').innerHTML = `Đã cập nhật <strong>${updatedCount} tasks</strong> carried-over & tạo mới <strong>${createdCount} tasks</strong> với khung giờ chuẩn hôm nay!`;
       setTimeout(() => alertToastNotification.classList.add('hidden'), 5000);
     }
 
@@ -1314,22 +1350,25 @@
   }
 
   function autoCascadeShiftTimeline(shiftName, forceStartTime = null) {
-    const shiftTasks = state.tasks.filter(t => (t.date === TODAY_STR || t.status === 'pending') && t.shift === shiftName);
+    const activeDate = state.selectedDate || TODAY_STR;
+    const shiftTasks = state.tasks.filter(t => (t.date || TODAY_STR) === activeDate && t.shift === shiftName);
     if (shiftTasks.length === 0) return;
 
-    let currentStartMins = null;
-
-    if (forceStartTime) {
-      const [h, m] = forceStartTime.split(':').map(Number);
-      currentStartMins = h * 60 + m;
-    } else if (shiftTasks[0].startTime) {
-      const [h, m] = shiftTasks[0].startTime.split(':').map(Number);
-      currentStartMins = h * 60 + m;
-    } else {
-      if (shiftName === 'morning') currentStartMins = 11 * 60;
-      else if (shiftName === 'afternoon') currentStartMins = 14 * 60;
-      else if (shiftName === 'evening') currentStartMins = 20 * 60;
+    if (!forceStartTime) {
+      // Just ensure endTime is calculated for tasks with startTime
+      shiftTasks.forEach(task => {
+        if (task.startTime) {
+          task.endTime = calculateTaskEndTime(task.startTime, task.durationPlannedMin);
+        }
+      });
+      saveState();
+      renderTasks();
+      return;
     }
+
+    let currentStartMins = null;
+    const [h, m] = forceStartTime.split(':').map(Number);
+    currentStartMins = h * 60 + m;
 
     shiftTasks.forEach(task => {
       const startH = Math.floor((currentStartMins / 60) % 24);
