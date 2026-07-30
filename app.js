@@ -1275,9 +1275,30 @@
       statusBadge = `<span class="badge badge-in-progress" title="Partially completed">⏸️ In Progress</span>`;
     }
 
-    const calculatedEndTime = calculateTaskEndTime(task.startTime, task.durationPlannedMin);
-    const isOvertime = task.focusMinsDone > task.durationPlannedMin;
-    const timeStatusClass = isOvertime ? 'time-range-red' : 'time-range-green';
+    const planMins = task.durationPlannedMin || 25;
+    const focusMins = task.focusMinsDone || 0;
+    const totalDistractMins = (task.distractions || []).reduce((sum, d) => sum + d.duration_min, 0);
+    const totalTaskSpanMins = focusMins + totalDistractMins;
+    const diffMins = totalTaskSpanMins - planMins;
+    
+    let varianceBadge = '';
+    let durationDisplayStyle = 'color: #64748b; font-weight: 800;';
+
+    if (task.status === 'completed' || totalTaskSpanMins > 0) {
+      if (diffMins > 0) {
+        varianceBadge = `<span class="badge" style="background:#fee2e2; color:#dc2626; font-weight:800; font-size:11px; padding:2px 7px; border-radius:6px;" title="Kéo dài hơn plan ${diffMins}m (${focusMins}m focus + ${totalDistractMins}m pause)">🔴 +${diffMins}m</span>`;
+        durationDisplayStyle = 'color: #dc2626; font-weight: 800; background: #fee2e2; padding: 2px 7px; border-radius: 6px;';
+      } else if (diffMins < 0) {
+        varianceBadge = `<span class="badge" style="background:#d1fae5; color:#047857; font-weight:800; font-size:11px; padding:2px 7px; border-radius:6px;" title="Hoàn thành sớm ${Math.abs(diffMins)}m">🟢 Sớm ${Math.abs(diffMins)}m</span>`;
+        durationDisplayStyle = 'color: #047857; font-weight: 800; background: #d1fae5; padding: 2px 7px; border-radius: 6px;';
+      } else {
+        varianceBadge = `<span class="badge" style="background:#d1fae5; color:#047857; font-weight:800; font-size:11px; padding:2px 7px; border-radius:6px;" title="Hoàn thành đúng hạn ${planMins}m">✅ Đúng hạn</span>`;
+        durationDisplayStyle = 'color: #047857; font-weight: 800; background: #d1fae5; padding: 2px 7px; border-radius: 6px;';
+      }
+    }
+
+    const calculatedEndTime = calculateTaskEndTime(task.startTime, totalTaskSpanMins > 0 ? totalTaskSpanMins : planMins);
+    const timeStatusClass = diffMins > 0 ? 'time-range-red' : 'time-range-green';
 
     item.innerHTML = `
       <div class="task-content-left">
@@ -1288,6 +1309,7 @@
             ${statusBadge}
             ${cognitiveBadge}
             ${priorityBadge}
+            ${varianceBadge}
             <span class="badge badge-pom">🍅 ${pomsNeeded} pom${pomsNeeded > 1 ? 's' : ''}</span>
             
             <div class="task-timebox-control" title="Set Start Time & End Time">
@@ -1304,7 +1326,7 @@
         </div>
       </div>
       <div class="task-actions-right">
-        <span style="font-size: 13px; font-weight: 800; color: #64748b; margin-right: 6px;">${task.durationPlannedMin}m</span>
+        <span style="font-size: 13px; margin-right: 6px; ${durationDisplayStyle}">${actualMins > 0 ? `${actualMins}m / ${planMins}m` : `${planMins}m`}</span>
         <button class="btn-task-action btn-carry-task" data-id="${task.id}" title="${task.status === 'carried_over' ? 'Hủy Carry Over' : 'Chuyển Carry Over sang ngày mai/hôm nay'}"><i class="ri-refresh-line"></i></button>
         <button class="btn-task-action btn-move-up" data-id="${task.id}" title="Move Up"><i class="ri-arrow-up-line"></i></button>
         <button class="btn-task-action btn-move-down" data-id="${task.id}" title="Move Down"><i class="ri-arrow-down-line"></i></button>
@@ -1360,21 +1382,19 @@
     const shiftTasks = state.tasks.filter(t => (t.date || TODAY_STR) === activeDate && t.shift === shiftName);
     if (shiftTasks.length === 0) return;
 
-    if (!forceStartTime) {
-      // Just ensure endTime is calculated for tasks with startTime
-      shiftTasks.forEach(task => {
-        if (task.startTime) {
-          task.endTime = calculateTaskEndTime(task.startTime, task.durationPlannedMin);
-        }
-      });
-      saveState();
-      renderTasks();
-      return;
-    }
-
     let currentStartMins = null;
-    const [h, m] = forceStartTime.split(':').map(Number);
-    currentStartMins = h * 60 + m;
+
+    if (forceStartTime) {
+      const [h, m] = forceStartTime.split(':').map(Number);
+      currentStartMins = h * 60 + m;
+    } else if (shiftTasks[0] && shiftTasks[0].startTime) {
+      const [h, m] = shiftTasks[0].startTime.split(':').map(Number);
+      currentStartMins = h * 60 + m;
+    } else {
+      if (shiftName === 'morning') currentStartMins = 9 * 60;
+      else if (shiftName === 'afternoon') currentStartMins = 14 * 60;
+      else if (shiftName === 'evening') currentStartMins = 19 * 60;
+    }
 
     shiftTasks.forEach(task => {
       const startH = Math.floor((currentStartMins / 60) % 24);
@@ -1545,6 +1565,11 @@
     popoutPlayIcon.className = 'ri-pause-fill';
 
     musicIframeWrapper.classList.remove('hidden');
+    try {
+      if (lofiAudioFrame && lofiAudioFrame.contentWindow) {
+        lofiAudioFrame.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+      }
+    } catch (e) {}
     updateYoutubeIframeSrc(true);
 
     clearInterval(timerInterval);
@@ -1581,7 +1606,16 @@
     clearInterval(timerInterval);
     timerPlayIcon.className = 'ri-play-fill';
     floatingPlayIcon.className = 'ri-play-fill';
-    popoutPlayIcon.className = 'ri-pause-fill';
+    popoutPlayIcon.className = 'ri-play-fill';
+
+    // Pause YouTube music/ambient audio when timer is paused!
+    try {
+      if (lofiAudioFrame && lofiAudioFrame.contentWindow) {
+        lofiAudioFrame.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+      }
+    } catch (e) {}
+    updateYoutubeIframeSrc(false);
+
     saveState();
   }
 
@@ -1788,6 +1822,14 @@
         duration_min,
         timestamp: `${activeTask.date || TODAY_STR} ${timeStr}`
       });
+
+      // Auto-recalculate endTime and cascade shift timeline including distraction duration!
+      if (activeTask.startTime) {
+        const totalDistractMins = activeTask.distractions.reduce((sum, d) => sum + d.duration_min, 0);
+        const totalTaskSpanMins = (activeTask.focusMinsDone || activeTask.durationPlannedMin) + totalDistractMins;
+        activeTask.endTime = calculateTaskEndTime(activeTask.startTime, totalTaskSpanMins);
+        autoCascadeShiftTimeline(activeTask.shift, activeTask.startTime);
+      }
     }
 
     closeDistractModal();
@@ -1839,7 +1881,18 @@
       activeTask.proofImage = taskProofDataInput.value || '';
 
       const elapsedSecs = state.timer.initialDurationSecs - state.timer.remainingSecs + state.timer.overtimeSecs;
-      activeTask.focusMinsDone = (activeTask.focusMinsDone || 0) + Math.round(elapsedSecs / 60);
+      const sessionMins = Math.round(elapsedSecs / 60);
+      activeTask.focusMinsDone = (activeTask.focusMinsDone || 0) + sessionMins;
+
+      // Auto-adjust endTime based on actual focus duration + distraction mins!
+      if (activeTask.startTime) {
+        const totalDistractMins = (activeTask.distractions || []).reduce((sum, d) => sum + d.duration_min, 0);
+        const totalTaskSpanMins = (activeTask.focusMinsDone || activeTask.durationPlannedMin) + totalDistractMins;
+        activeTask.endTime = calculateTaskEndTime(activeTask.startTime, totalTaskSpanMins);
+        
+        // Auto-cascade subsequent tasks in the same shift so their start times move cleanly!
+        autoCascadeShiftTimeline(activeTask.shift, activeTask.startTime);
+      }
 
       const statusBadgeText = selectedStatus === 'completed' ? '✅ Fully Completed' : (selectedStatus === 'carried_over' ? '🔄 Carried Over to Tomorrow' : '⏸️ Saved In Progress');
 
@@ -2405,24 +2458,30 @@
           return;
         }
 
-        const rawCols = line.split('|');
-        const cols = rawCols.map(c => c.trim().replace(/\*\*/g, '').replace(/`/g, '')).filter((c, i, arr) => i > 0 && i < arr.length - 1);
+        // Robust Markdown Table Column Extraction
+        let cols = line.split('|').map(c => c.trim().replace(/[\*\`]/g, ''));
+        if (cols.length > 0 && cols[0] === '') cols.shift();
+        if (cols.length > 0 && cols[cols.length - 1] === '') cols.pop();
         if (cols.length < 3) return;
 
         // Col 0: Khung Giờ (e.g. "14:50 - 15:10")
-        const timeCol = cols[0] || '';
+        let timeCol = cols[0] || '';
         let startTime = '';
         let endTime = '';
-        let shift = 'morning';
+        let shift = 'afternoon';
 
-        const timeMatch = timeCol.match(/(\d{1,2}:\d{2})\s*[\-\–\—]?\s*(\d{1,2}:\d{2})?/);
+        let timeMatch = timeCol.match(/(\d{1,2}[:\.]\d{2})\s*(?:AM|PM)?\s*[\-\–\—\➔\->]*\s*(\d{1,2}[:\.]\d{2})?/i);
+        if (!timeMatch && cols[1]) {
+          timeMatch = cols[1].match(/(\d{1,2}[:\.]\d{2})\s*(?:AM|PM)?\s*[\-\–\—\➔\->]*\s*(\d{1,2}[:\.]\d{2})?/i);
+        }
+
         if (timeMatch) {
-          startTime = timeMatch[1].padStart(5, '0');
-          if (timeMatch[2]) endTime = timeMatch[2].padStart(5, '0');
+          startTime = timeMatch[1].replace('.', ':').padStart(5, '0');
+          if (timeMatch[2]) endTime = timeMatch[2].replace('.', ':').padStart(5, '0');
 
           const startHour = parseInt(startTime.split(':')[0], 10);
           if (startHour >= 12 && startHour < 18) shift = 'afternoon';
-          else if (startHour >= 18 || startHour < 6) shift = 'evening';
+          else if (startHour >= 18 || startHour < 5) shift = 'evening';
           else shift = 'morning';
         }
 
