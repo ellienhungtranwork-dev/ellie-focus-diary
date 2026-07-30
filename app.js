@@ -2568,7 +2568,7 @@
       card.className = 'parsed-task-card';
       card.style.display = 'flex';
       card.style.alignItems = 'center';
-      card.style.justifySpaceBetween = 'space-between';
+      card.style.justifyContent = 'space-between';
       card.style.padding = '10px 14px';
       card.style.marginBottom = '8px';
       card.style.background = t.status === 'completed' ? '#f0fdf4' : 'var(--card-bg, #ffffff)';
