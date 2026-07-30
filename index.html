@@ -978,7 +978,12 @@
         <!-- Parsed Tasks Preview Grid -->
         <div class="ocr-result-grid hidden mt-3" id="ocrResultGrid">
           <div class="parsed-tasks-col" style="width: 100%;">
-            <label class="section-label"><i class="ri-list-check-3"></i> Danh sách Tasks đã nhận diện (<span id="parsedTasksCount">0</span> tasks):</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+              <label class="section-label" style="margin-bottom:0;"><i class="ri-list-check-3"></i> Danh sách Tasks đã nhận diện (<span id="parsedTasksCount">0</span> tasks):</label>
+              <button type="button" class="btn-submit btn-success" id="quickImportHeaderBtn" style="padding: 8px 18px; font-size: 13px; font-weight: 800; border-radius: 10px; background: linear-gradient(135deg, #10b981, #059669); border: none; color: #fff; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);">
+                <i class="ri-checkbox-circle-fill"></i> ✅ Tick Import Vào Web Focus
+              </button>
+            </div>
             <div class="parsed-tasks-list" id="parsedTasksList">
               <!-- Dynamic parsed task items -->
             </div>

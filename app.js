@@ -721,20 +721,26 @@
       });
     }
 
+    function executeImportTasks() {
+      if (!currentParsedTasks || currentParsedTasks.length === 0) return;
+      
+      state.tasks.push(...currentParsedTasks);
+      saveState();
+      renderTasks();
+      screenshotModalBackdrop.classList.add('hidden');
+      
+      alertToastNotification.classList.remove('hidden');
+      alertToastNotification.querySelector('h4').textContent = '🎉 Import Tasks Thành Công!';
+      alertToastNotification.querySelector('p').innerHTML = `Đã tự động thêm <strong>${currentParsedTasks.length} tasks</strong> từ AG Markdown vào Web Focus!`;
+      setTimeout(() => alertToastNotification.classList.add('hidden'), 5000);
+    }
+
     if (confirmImportTasksBtn) {
-      confirmImportTasksBtn.addEventListener('click', () => {
-        if (currentParsedTasks.length === 0) return;
-        
-        state.tasks.push(...currentParsedTasks);
-        saveState();
-        renderTasks();
-        screenshotModalBackdrop.classList.add('hidden');
-        
-        alertToastNotification.classList.remove('hidden');
-        alertToastNotification.querySelector('h4').textContent = '🎉 Import Tasks Thành Công!';
-        alertToastNotification.querySelector('p').innerHTML = `Đã tự động thêm <strong>${currentParsedTasks.length} tasks</strong> từ ảnh chụp màn hình vào Web Focus!`;
-        setTimeout(() => alertToastNotification.classList.add('hidden'), 5000);
-      });
+      confirmImportTasksBtn.addEventListener('click', executeImportTasks);
+    }
+    const quickImportHeaderBtn = document.getElementById('quickImportHeaderBtn');
+    if (quickImportHeaderBtn) {
+      quickImportHeaderBtn.addEventListener('click', executeImportTasks);
     }
 
     // Proof Screenshot Paste Zone Listeners
@@ -2545,37 +2551,68 @@
     parsedTasksList.innerHTML = '';
     parsedTasksCount.textContent = parsedTasks.length;
     
+    const quickImportHeaderBtn = document.getElementById('quickImportHeaderBtn');
+
     if (parsedTasks.length === 0) {
-      parsedTasksList.innerHTML = `<div style="padding: 16px; text-align: center; color: #94a3b8; font-size: 13px;">Không tìm thấy task hợp lệ từ văn bản/ảnh. Bạn có thể tự dán danh sách task dạng dòng vào ô bên trái!</div>`;
-      confirmImportTasksBtn.classList.add('hidden');
+      parsedTasksList.innerHTML = `<div style="padding: 16px; text-align: center; color: #94a3b8; font-size: 13px;">Không tìm thấy task hợp lệ từ văn bản/ảnh. Bạn có thể dán bảng Markdown từ AG vào ô trên!</div>`;
+      if (confirmImportTasksBtn) confirmImportTasksBtn.classList.add('hidden');
+      if (quickImportHeaderBtn) quickImportHeaderBtn.classList.add('hidden');
       return;
     }
+
+    if (confirmImportTasksBtn) confirmImportTasksBtn.classList.remove('hidden');
+    if (quickImportHeaderBtn) quickImportHeaderBtn.classList.remove('hidden');
     
     parsedTasks.forEach((t, i) => {
       const card = document.createElement('div');
       card.className = 'parsed-task-card';
+      card.style.display = 'flex';
+      card.style.alignItems = 'center';
+      card.style.justifySpaceBetween = 'space-between';
+      card.style.padding = '10px 14px';
+      card.style.marginBottom = '8px';
+      card.style.background = t.status === 'completed' ? '#f0fdf4' : 'var(--card-bg, #ffffff)';
+      card.style.border = t.status === 'completed' ? '1px solid #86efac' : '1px solid var(--border-color, #e2e8f0)';
+      card.style.borderRadius = '10px';
+
+      const isDone = t.status === 'completed';
+      const statusBadgeHtml = isDone 
+        ? `<span class="badge" style="background:#d1fae5; color:#047857; font-weight:700;">✅ Đã xong (AG)</span>`
+        : t.status === 'in_progress'
+        ? `<span class="badge" style="background:#fef3c7; color:#b45309; font-weight:700;">⏸️ Đang làm</span>`
+        : `<span class="badge" style="background:#f1f5f9; color:#475569;">⏳ Chờ làm</span>`;
+
       card.innerHTML = `
-        <div class="parsed-task-info">
-          <h5>${escapeHtml(t.title)}</h5>
-          <div class="parsed-task-meta">
-            <span class="badge-shift">${t.shift.toUpperCase()}</span>
+        <div class="parsed-task-info" style="flex:1;">
+          <h5 style="margin:0 0 4px 0; font-size:14px; font-weight:700; ${isDone ? 'text-decoration:line-through; color:#64748b;' : ''}">${escapeHtml(t.title)}</h5>
+          <div class="parsed-task-meta" style="display:flex; gap:6px; flex-wrap:wrap; font-size:11px;">
+            <span class="badge-shift" style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-weight:700;">${t.shift.toUpperCase()}</span>
             <span>⏱️ ${t.durationPlannedMin}m</span>
             <span>🏷️ ${t.category}</span>
             <span>${t.priority === 'P1' ? '🔴 P1' : t.priority === 'P2' ? '🟡 P2' : '🟢 P3'}</span>
+            ${statusBadgeHtml}
           </div>
         </div>
-        <button class="btn-dl-action btn-delete-parsed" data-index="${i}" title="Remove"><i class="ri-close-line"></i></button>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button class="btn-dl-action btn-toggle-parsed-status" data-index="${i}" title="${isDone ? 'Chuyển sang Chờ làm' : 'Đánh dấu Đã xong'}" style="background:${isDone ? '#10b981' : '#e2e8f0'}; color:${isDone ? '#fff' : '#475569'}; border:none; padding:5px 10px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:700;">
+            ${isDone ? '✓ Done' : '◯ Done'}
+          </button>
+          <button class="btn-dl-action btn-delete-parsed" data-index="${i}" title="Xóa task" style="background:transparent; border:none; color:#ef4444; font-size:16px; cursor:pointer;"><i class="ri-close-line"></i></button>
+        </div>
       `;
-      
+
+      card.querySelector('.btn-toggle-parsed-status').addEventListener('click', () => {
+        t.status = t.status === 'completed' ? 'pending' : 'completed';
+        renderParsedTasksList(currentParsedTasks);
+      });
+
       card.querySelector('.btn-delete-parsed').addEventListener('click', () => {
         currentParsedTasks.splice(i, 1);
         renderParsedTasksList(currentParsedTasks);
       });
-      
+
       parsedTasksList.appendChild(card);
     });
-    
-    confirmImportTasksBtn.classList.remove('hidden');
   }
 
   document.addEventListener('DOMContentLoaded', init);
