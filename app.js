@@ -722,69 +722,92 @@
     }
 
     function executeImportTasks() {
-      if (!currentParsedTasks || currentParsedTasks.length === 0) {
-        const rawText = ocrRawTextArea ? ocrRawTextArea.value.trim() : '';
-        if (rawText) {
-          currentParsedTasks = parseTasksFromText(rawText);
+      try {
+        if (!currentParsedTasks || currentParsedTasks.length === 0) {
+          const rawText = ocrRawTextArea ? ocrRawTextArea.value.trim() : '';
+          if (rawText) {
+            currentParsedTasks = parseTasksFromText(rawText);
+          }
         }
-      }
 
-      if (!currentParsedTasks || currentParsedTasks.length === 0) {
-        alert('Vui lòng dán đoạn Markdown vào ô nhập và bấm "Phân Tích Markdown Tasks" trước khi bấm Import nhé!');
-        return;
-      }
-      
-      const activeDate = state.selectedDate || TODAY_STR;
-      let updatedCount = 0;
-      let createdCount = 0;
-
-      currentParsedTasks.forEach(newTask => {
-        // Extract task code prefix if any, e.g. [BD011-01]
-        const codeMatch = newTask.title.match(/\[([A-Z0-9\-]+)\]/i);
-        const taskCode = codeMatch ? codeMatch[1].toUpperCase() : null;
+        if (!currentParsedTasks || currentParsedTasks.length === 0) {
+          alert('Vui lòng dán đoạn Markdown vào ô nhập và bấm "Phân Tích Markdown Tasks" trước khi bấm Import nhé!');
+          return;
+        }
         
-        // Find if there's an uncompleted existing task (either for today or carried over from yesterday)
-        const existingTask = state.tasks.find(t => {
-          if (t.status === 'completed') return false; // don't overwrite completed tasks
-          if (taskCode && t.title.toUpperCase().includes(`[${taskCode}]`)) return true;
-          return t.title.toLowerCase().trim() === newTask.title.toLowerCase().trim();
+        const activeDate = state.selectedDate || TODAY_STR;
+        let updatedCount = 0;
+        let createdCount = 0;
+
+        if (!Array.isArray(state.tasks)) {
+          state.tasks = [];
+        }
+
+        currentParsedTasks.forEach(newTask => {
+          if (!newTask || !newTask.title) return;
+
+          // Extract task code prefix if any, e.g. [BD011-01]
+          const codeMatch = newTask.title.match(/\[([A-Z0-9\-]+)\]/i);
+          const taskCode = codeMatch ? codeMatch[1].toUpperCase() : null;
+          
+          // Find if there's an uncompleted existing task (either for today or carried over from yesterday)
+          const existingTask = state.tasks.find(t => {
+            if (!t || !t.title) return false;
+            if (t.status === 'completed') return false; // don't overwrite completed tasks
+            if (taskCode && t.title.toUpperCase().includes(`[${taskCode}]`)) return true;
+            return t.title.toLowerCase().trim() === newTask.title.toLowerCase().trim();
+          });
+
+          if (existingTask) {
+            // Update existing task with new date and fresh start/end times from AG!
+            existingTask.date = activeDate;
+            existingTask.shift = newTask.shift || 'morning';
+            existingTask.startTime = newTask.startTime || existingTask.startTime || '';
+            existingTask.endTime = newTask.endTime || existingTask.endTime || '';
+            existingTask.durationPlannedMin = newTask.durationPlannedMin || existingTask.durationPlannedMin || 30;
+            existingTask.priority = newTask.priority || existingTask.priority || 'P2';
+            existingTask.cognitiveLoad = newTask.cognitiveLoad || existingTask.cognitiveLoad || 'Routine';
+            existingTask.category = newTask.category || existingTask.category || 'Career/Work';
+            existingTask.project = newTask.project || existingTask.project || 'Career OS';
+            if (newTask.goal) existingTask.goal = newTask.goal;
+            if (newTask.status === 'completed') existingTask.status = 'completed';
+            updatedCount++;
+          } else {
+            state.tasks.push(newTask);
+            createdCount++;
+          }
         });
 
-        if (existingTask) {
-          // Update existing task with new date and fresh start/end times from AG!
-          existingTask.date = activeDate;
-          existingTask.shift = newTask.shift;
-          existingTask.startTime = newTask.startTime;
-          existingTask.endTime = newTask.endTime;
-          existingTask.durationPlannedMin = newTask.durationPlannedMin;
-          existingTask.priority = newTask.priority;
-          existingTask.cognitiveLoad = newTask.cognitiveLoad;
-          existingTask.category = newTask.category;
-          existingTask.project = newTask.project;
-          if (newTask.goal) existingTask.goal = newTask.goal;
-          if (newTask.status === 'completed') existingTask.status = 'completed';
-          updatedCount++;
-        } else {
-          state.tasks.push(newTask);
-          createdCount++;
+        // Sort tasks chronologically by startTime
+        state.tasks.sort((a, b) => {
+          if (!a || !a.startTime) return 1;
+          if (!b || !b.startTime) return -1;
+          return a.startTime.localeCompare(b.startTime);
+        });
+
+        saveState();
+        renderTasks();
+        
+        if (screenshotModalBackdrop) {
+          screenshotModalBackdrop.classList.add('hidden');
         }
-      });
-
-      // Sort tasks chronologically by startTime
-      state.tasks.sort((a, b) => {
-        if (!a.startTime) return 1;
-        if (!b.startTime) return -1;
-        return a.startTime.localeCompare(b.startTime);
-      });
-
-      saveState();
-      renderTasks();
-      screenshotModalBackdrop.classList.add('hidden');
-      
-      alertToastNotification.classList.remove('hidden');
-      alertToastNotification.querySelector('h4').textContent = '🎉 Đồng Bộ Smart Import Thành Công!';
-      alertToastNotification.querySelector('p').innerHTML = `Đã cập nhật <strong>${updatedCount} tasks</strong> carried-over & tạo mới <strong>${createdCount} tasks</strong> với khung giờ chuẩn hôm nay!`;
-      setTimeout(() => alertToastNotification.classList.add('hidden'), 5000);
+        
+        if (alertToastNotification) {
+          alertToastNotification.classList.remove('hidden');
+          const h4 = alertToastNotification.querySelector('h4');
+          const p = alertToastNotification.querySelector('p');
+          if (h4) h4.textContent = '🎉 Đồng Bộ Smart Import Thành Công!';
+          if (p) p.innerHTML = `Đã cập nhật <strong>${updatedCount} tasks</strong> carried-over & tạo mới <strong>${createdCount} tasks</strong> với khung giờ chuẩn hôm nay!`;
+          setTimeout(() => {
+            if (alertToastNotification) alertToastNotification.classList.add('hidden');
+          }, 5000);
+        } else {
+          alert(`🎉 Đã import thành công ${createdCount + updatedCount} tasks vào Web Focus!`);
+        }
+      } catch (err) {
+        console.error('Import Tasks Error:', err);
+        alert('Đã xảy ra lỗi khi Import Tasks: ' + err.message);
+      }
     }
 
     if (confirmImportTasksBtn) {
