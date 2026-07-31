@@ -1310,6 +1310,7 @@
 
     const planMins = task.durationPlannedMin || 25;
     const focusMins = task.focusMinsDone || 0;
+    const actualMins = focusMins;
     const totalDistractMins = (task.distractions || []).reduce((sum, d) => sum + d.duration_min, 0);
     const totalTaskSpanMins = focusMins + totalDistractMins;
     const diffMins = totalTaskSpanMins - planMins;
