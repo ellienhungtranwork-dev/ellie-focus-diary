@@ -750,10 +750,11 @@
           const codeMatch = newTask.title.match(/\[([A-Z0-9\-]+)\]/i);
           const taskCode = codeMatch ? codeMatch[1].toUpperCase() : null;
           
-          // Find if there's an uncompleted existing task (either for today or carried over from yesterday)
+          // Find if there's an existing task for today or carried over with the same task code or title
           const existingTask = state.tasks.find(t => {
             if (!t || !t.title) return false;
-            if (t.status === 'completed') return false; // don't overwrite completed tasks
+            const tDate = t.date || TODAY_STR;
+            if (tDate !== activeDate && t.status === 'completed') return false;
             if (taskCode && t.title.toUpperCase().includes(`[${taskCode}]`)) return true;
             return t.title.toLowerCase().trim() === newTask.title.toLowerCase().trim();
           });
@@ -770,12 +771,26 @@
             existingTask.category = newTask.category || existingTask.category || 'Career/Work';
             existingTask.project = newTask.project || existingTask.project || 'Career OS';
             if (newTask.goal) existingTask.goal = newTask.goal;
-            if (newTask.status === 'completed') existingTask.status = 'completed';
+            if (newTask.status) existingTask.status = newTask.status;
             updatedCount++;
           } else {
             state.tasks.push(newTask);
             createdCount++;
           }
+        });
+
+        // Deduplicate state.tasks for the active date by taskCode or title
+        const seenKeys = new Set();
+        state.tasks = state.tasks.filter(t => {
+          if (!t || !t.title) return false;
+          const tDate = t.date || TODAY_STR;
+          if (tDate === activeDate) {
+            const codeMatch = t.title.match(/\[([A-Z0-9\-]+)\]/i);
+            const key = codeMatch ? codeMatch[1].toUpperCase() : t.title.toLowerCase().trim();
+            if (seenKeys.has(key)) return false;
+            seenKeys.add(key);
+          }
+          return true;
         });
 
         // Sort tasks chronologically by startTime
@@ -1242,6 +1257,20 @@
     morningTaskList.innerHTML = '';
     afternoonTaskList.innerHTML = '';
     eveningTaskList.innerHTML = '';
+
+    // Auto cleanup duplicate tasks for the same date and task code/title
+    if (Array.isArray(state.tasks)) {
+      const seenMap = new Map();
+      state.tasks = state.tasks.filter(t => {
+        if (!t || !t.title) return false;
+        const tDate = t.date || TODAY_STR;
+        const codeMatch = t.title.match(/\[([A-Z0-9\-]+)\]/i);
+        const key = `${tDate}_${codeMatch ? codeMatch[1].toUpperCase() : t.title.toLowerCase().trim()}`;
+        if (seenMap.has(key)) return false;
+        seenMap.set(key, true);
+        return true;
+      });
+    }
 
     const shiftCounts = { morning: 0, afternoon: 0, evening: 0 };
     const shiftPoms = { morning: 0, afternoon: 0, evening: 0 };
