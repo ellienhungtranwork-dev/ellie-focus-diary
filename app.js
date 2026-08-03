@@ -405,6 +405,8 @@
     });
   }
 
+  const BACKUP_KEY = STORAGE_KEY + '_snapshot';
+
   function saveState() {
     try {
       const currentToday = getTodayStr();
@@ -419,7 +421,11 @@
         return value;
       }));
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(serializableState));
+      const jsonStr = JSON.stringify(serializableState);
+      localStorage.setItem(STORAGE_KEY, jsonStr);
+      if (Array.isArray(state.tasks) && state.tasks.length > 0) {
+        localStorage.setItem(BACKUP_KEY, jsonStr);
+      }
     } catch (err) {
       console.error('Failed to save state to localStorage:', err);
       // Fallback for QuotaExceededError (e.g., large base64 proof images)
@@ -429,7 +435,11 @@
           if (key === 'proofImage' && typeof value === 'string' && value.length > 500) return '';
           return value;
         }));
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(fallbackState));
+        const fallbackJson = JSON.stringify(fallbackState);
+        localStorage.setItem(STORAGE_KEY, fallbackJson);
+        if (Array.isArray(state.tasks) && state.tasks.length > 0) {
+          localStorage.setItem(BACKUP_KEY, fallbackJson);
+        }
       } catch (fallbackErr) {
         console.error('Fallback saveState also failed:', fallbackErr);
       }
@@ -715,6 +725,37 @@
     }
     if (closeScreenshotModalBtn) closeScreenshotModalBtn.addEventListener('click', () => screenshotModalBackdrop.classList.add('hidden'));
     if (cancelScreenshotModalBtn) cancelScreenshotModalBtn.addEventListener('click', () => screenshotModalBackdrop.classList.add('hidden'));
+
+    // Load Last Data / Restore Snapshot Event Listener
+    const restoreLatestDataBtn = document.getElementById('restoreLatestDataBtn');
+    if (restoreLatestDataBtn) {
+      restoreLatestDataBtn.addEventListener('click', () => {
+        let saved = localStorage.getItem(STORAGE_KEY);
+        let source = 'Bộ nhớ lưu chính';
+
+        if (!saved || saved === '{}') {
+          saved = localStorage.getItem(BACKUP_KEY);
+          source = 'Bản sao lưu dự phòng (Snapshot)';
+        }
+
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (parsed && typeof parsed === 'object') {
+              state = { ...state, ...parsed };
+              if (!Array.isArray(state.tasks)) state.tasks = [];
+              renderAll();
+              alert(`✅ Đã nạp lại thành công ${state.tasks.length} tasks & dữ liệu mới nhất từ ${source}!`);
+              return;
+            }
+          } catch (e) {
+            console.error('Failed to restore latest state:', e);
+          }
+        }
+
+        alert('⚠️ Chưa tìm thấy bản lưu gần nhất nào trong bộ nhớ!');
+      });
+    }
 
     // Reset Today Tasks Event Listeners
     const resetTodayTasksBtn = document.getElementById('resetTodayTasksBtn');
@@ -1320,20 +1361,6 @@
     morningTaskList.innerHTML = '';
     afternoonTaskList.innerHTML = '';
     eveningTaskList.innerHTML = '';
-
-    // Auto cleanup duplicate tasks for the same date and task code/title
-    if (Array.isArray(state.tasks)) {
-      const seenMap = new Map();
-      state.tasks = state.tasks.filter(t => {
-        if (!t || !t.title) return false;
-        const tDate = t.date || TODAY_STR;
-        const codeMatch = t.title.match(/\[([A-Z0-9\-]+)\]/i);
-        const key = `${tDate}_${codeMatch ? codeMatch[1].toUpperCase() : t.title.toLowerCase().trim()}`;
-        if (seenMap.has(key)) return false;
-        seenMap.set(key, true);
-        return true;
-      });
-    }
 
     const shiftCounts = { morning: 0, afternoon: 0, evening: 0 };
     const shiftPoms = { morning: 0, afternoon: 0, evening: 0 };
