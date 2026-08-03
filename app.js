@@ -156,6 +156,7 @@
       remainingSecs: 45 * 60,
       initialDurationSecs: 45 * 60,
       overtimeSecs: 0,
+      elapsedTaskSecs: 0,
       alert5MinFired: false
     },
     distractModalTimer: {
@@ -410,6 +411,7 @@
         if (state.timer && state.timer.isRunning && state.timer.lastTickTimestamp) {
           const elapsedSecs = Math.floor((Date.now() - state.timer.lastTickTimestamp) / 1000);
           if (elapsedSecs > 0) {
+            state.timer.elapsedTaskSecs = (state.timer.elapsedTaskSecs || 0) + elapsedSecs;
             if (state.timer.mode === 'countdown' || state.timer.mode === 'break') {
               if (state.timer.remainingSecs > elapsedSecs) {
                 state.timer.remainingSecs -= elapsedSecs;
@@ -661,6 +663,36 @@
     if (closeScreenshotModalBtn) closeScreenshotModalBtn.addEventListener('click', () => screenshotModalBackdrop.classList.add('hidden'));
     if (cancelScreenshotModalBtn) cancelScreenshotModalBtn.addEventListener('click', () => screenshotModalBackdrop.classList.add('hidden'));
 
+    // Reset Today Tasks Event Listeners
+    const resetTodayTasksBtn = document.getElementById('resetTodayTasksBtn');
+    if (resetTodayTasksBtn) {
+      resetTodayTasksBtn.addEventListener('click', () => {
+        const activeDate = state.selectedDate || TODAY_STR;
+        if (confirm(`🧹 Bạn có chắc chắn muốn XÓA SẠCH toàn bộ tasks của ngày (${activeDate}) để trả về trạng thái trống ban đầu không?`)) {
+          state.tasks = state.tasks.filter(t => (t.date || TODAY_STR) !== activeDate);
+          state.activeTaskId = null;
+          saveState();
+          renderAll();
+          alert('✨ Đã xóa sạch toàn bộ tasks ngày! Trả về giao diện trống ban đầu.');
+        }
+      });
+    }
+
+    const clearModalTasksBtn = document.getElementById('clearModalTasksBtn');
+    if (clearModalTasksBtn) {
+      clearModalTasksBtn.addEventListener('click', () => {
+        const activeDate = state.selectedDate || TODAY_STR;
+        if (confirm(`🧹 Bạn có chắc chắn muốn XÓA SẠCH toàn bộ tasks ngày (${activeDate}) về trống không?`)) {
+          state.tasks = state.tasks.filter(t => (t.date || TODAY_STR) !== activeDate);
+          state.activeTaskId = null;
+          saveState();
+          renderAll();
+          resetScreenshotModal();
+          alert('✨ Đã làm sạch tasks ngày về trống!');
+        }
+      });
+    }
+
     // Sample AG Markdown Paste Button
     const pasteSampleMarkdownBtn = document.getElementById('pasteSampleMarkdownBtn');
     if (pasteSampleMarkdownBtn) {
@@ -736,61 +768,19 @@
         }
         
         const activeDate = state.selectedDate || TODAY_STR;
-        let updatedCount = 0;
-        let createdCount = 0;
 
         if (!Array.isArray(state.tasks)) {
           state.tasks = [];
         }
 
+        // Auto-clear existing tasks for activeDate so pasting a new Markdown auto-deletes old tasks!
+        state.tasks = state.tasks.filter(t => (t.date || TODAY_STR) !== activeDate);
+
+        const importedCount = currentParsedTasks.length;
         currentParsedTasks.forEach(newTask => {
           if (!newTask || !newTask.title) return;
-
-          // Extract task code prefix if any, e.g. [BD011-01]
-          const codeMatch = newTask.title.match(/\[([A-Z0-9\-]+)\]/i);
-          const taskCode = codeMatch ? codeMatch[1].toUpperCase() : null;
-          
-          // Find if there's an existing task for today or carried over with the same task code or title
-          const existingTask = state.tasks.find(t => {
-            if (!t || !t.title) return false;
-            const tDate = t.date || TODAY_STR;
-            if (tDate !== activeDate && t.status === 'completed') return false;
-            if (taskCode && t.title.toUpperCase().includes(`[${taskCode}]`)) return true;
-            return t.title.toLowerCase().trim() === newTask.title.toLowerCase().trim();
-          });
-
-          if (existingTask) {
-            // Update existing task with new date and fresh start/end times from AG!
-            existingTask.date = activeDate;
-            existingTask.shift = newTask.shift || 'morning';
-            existingTask.startTime = newTask.startTime || existingTask.startTime || '';
-            existingTask.endTime = newTask.endTime || existingTask.endTime || '';
-            existingTask.durationPlannedMin = newTask.durationPlannedMin || existingTask.durationPlannedMin || 30;
-            existingTask.priority = newTask.priority || existingTask.priority || 'P2';
-            existingTask.cognitiveLoad = newTask.cognitiveLoad || existingTask.cognitiveLoad || 'Routine';
-            existingTask.category = newTask.category || existingTask.category || 'Career/Work';
-            existingTask.project = newTask.project || existingTask.project || 'Career OS';
-            if (newTask.goal) existingTask.goal = newTask.goal;
-            if (newTask.status) existingTask.status = newTask.status;
-            updatedCount++;
-          } else {
-            state.tasks.push(newTask);
-            createdCount++;
-          }
-        });
-
-        // Deduplicate state.tasks for the active date by taskCode or title
-        const seenKeys = new Set();
-        state.tasks = state.tasks.filter(t => {
-          if (!t || !t.title) return false;
-          const tDate = t.date || TODAY_STR;
-          if (tDate === activeDate) {
-            const codeMatch = t.title.match(/\[([A-Z0-9\-]+)\]/i);
-            const key = codeMatch ? codeMatch[1].toUpperCase() : t.title.toLowerCase().trim();
-            if (seenKeys.has(key)) return false;
-            seenKeys.add(key);
-          }
-          return true;
+          newTask.date = activeDate;
+          state.tasks.push(newTask);
         });
 
         // Sort tasks chronologically by startTime
@@ -801,7 +791,7 @@
         });
 
         saveState();
-        renderTasks();
+        renderAll();
         
         if (screenshotModalBackdrop) {
           screenshotModalBackdrop.classList.add('hidden');
@@ -812,12 +802,12 @@
           const h4 = alertToastNotification.querySelector('h4');
           const p = alertToastNotification.querySelector('p');
           if (h4) h4.textContent = '🎉 Đồng Bộ Smart Import Thành Công!';
-          if (p) p.innerHTML = `Đã cập nhật <strong>${updatedCount} tasks</strong> carried-over & tạo mới <strong>${createdCount} tasks</strong> với khung giờ chuẩn hôm nay!`;
+          if (p) p.innerHTML = `Đã tự động làm sạch tasks cũ & nạp <strong>${importedCount} tasks mới</strong> với khung giờ chuẩn hôm nay!`;
           setTimeout(() => {
             if (alertToastNotification) alertToastNotification.classList.add('hidden');
           }, 5000);
         } else {
-          alert(`🎉 Đã import thành công ${createdCount + updatedCount} tasks vào Web Focus!`);
+          alert(`🎉 Đã nạp thành công ${importedCount} tasks mới vào Web Focus!`);
         }
       } catch (err) {
         console.error('Import Tasks Error:', err);
@@ -974,6 +964,22 @@
     closeGsheetModalBtn.addEventListener('click', () => gsheetModalBackdrop.classList.add('hidden'));
     copyGSheetClipboardBtn.addEventListener('click', copyGSheetFormattedData);
     confirmSyncGsheetBtn.addEventListener('click', handleSyncToGoogleSheets);
+
+    // Congrats Modal Close
+    const closeCongratsModalBtn = document.getElementById('closeCongratsModalBtn');
+    const closeCongratsModalFooterBtn = document.getElementById('closeCongratsModalFooterBtn');
+    if (closeCongratsModalBtn) {
+      closeCongratsModalBtn.addEventListener('click', () => {
+        congratsModalBackdrop.classList.add('hidden');
+        renderAll();
+      });
+    }
+    if (closeCongratsModalFooterBtn) {
+      closeCongratsModalFooterBtn.addEventListener('click', () => {
+        congratsModalBackdrop.classList.add('hidden');
+        renderAll();
+      });
+    }
 
     // Toast Notification
     closeToastBtn.addEventListener('click', () => alertToastNotification.classList.add('hidden'));
@@ -1395,11 +1401,14 @@
         <button class="btn-task-action btn-move-down" data-id="${task.id}" title="Move Down"><i class="ri-arrow-down-line"></i></button>
         <button class="btn-task-action btn-edit-task" data-id="${task.id}" title="Edit Task"><i class="ri-edit-line"></i></button>
         <button class="btn-task-action btn-delete-task" data-id="${task.id}" title="Delete Task"><i class="ri-delete-bin-line"></i></button>
+        <button class="btn-task-action btn-toggle-complete" data-id="${task.id}" title="${task.status === 'completed' ? 'Bấm để hủy Hoàn Thành (chuyển lại Pending)' : 'Đánh dấu Hoàn Thành nhanh'}">
+          <i class="${task.status === 'completed' ? 'ri-checkbox-circle-fill' : 'ri-checkbox-circle-line'}" style="color: ${task.status === 'completed' ? '#10b981' : '#94a3b8'}; font-size: 24px;"></i>
+        </button>
         ${task.status !== 'completed' ? `
           <button class="btn-play-task" data-id="${task.id}" title="Select Task for Focus">
             <i class="ri-play-fill"></i>
           </button>
-        ` : `<i class="ri-checkbox-circle-fill" style="color: #10b981; font-size: 26px;"></i>`}
+        ` : ''}
       </div>
     `;
 
@@ -1409,6 +1418,19 @@
       autoCascadeShiftTimeline(task.shift, e.target.value);
     });
 
+    item.querySelector('.btn-toggle-complete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (task.status === 'completed') {
+        task.status = 'pending';
+      } else {
+        task.status = 'completed';
+        if (!task.output) task.output = 'Completed via Quick Mark';
+        if (!task.focusMinsDone) task.focusMinsDone = task.durationPlannedMin || 25;
+      }
+      saveState();
+      renderAll();
+    });
+
     item.querySelector('.btn-carry-task').addEventListener('click', () => {
       if (task.status === 'carried_over') {
         task.status = 'pending';
@@ -1416,7 +1438,7 @@
         task.status = 'carried_over';
       }
       saveState();
-      renderTasks();
+      renderAll();
     });
 
     item.querySelector('.btn-move-up').addEventListener('click', () => moveTask(task.id, -1));
@@ -1508,8 +1530,13 @@
     if (!task) return;
 
     state.activeTaskId = taskId;
-    state.timer.initialDurationSecs = task.durationPlannedMin * 60;
-    state.timer.remainingSecs = task.durationPlannedMin * 60;
+    const doneMins = task.focusMinsDone || 0;
+    const planMins = task.durationPlannedMin || 25;
+    const remainingMins = Math.max(1, planMins - doneMins);
+
+    state.timer.initialDurationSecs = remainingMins * 60;
+    state.timer.remainingSecs = remainingMins * 60;
+    state.timer.elapsedTaskSecs = doneMins * 60;
     state.timer.mode = 'countdown';
     state.timer.overtimeSecs = 0;
     state.timer.isRunning = false;
@@ -1638,6 +1665,13 @@
     clearInterval(timerInterval);
     timerInterval = setInterval(() => {
       state.timer.lastTickTimestamp = Date.now();
+      state.timer.elapsedTaskSecs = (state.timer.elapsedTaskSecs || 0) + 1;
+
+      const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
+      if (activeTask) {
+        activeTask.focusMinsDone = Math.round(state.timer.elapsedTaskSecs / 60);
+      }
+
       if (state.timer.mode === 'countdown' || state.timer.mode === 'break') {
         if (state.timer.remainingSecs > 0) {
           state.timer.remainingSecs--;
@@ -1671,6 +1705,11 @@
     floatingPlayIcon.className = 'ri-play-fill';
     popoutPlayIcon.className = 'ri-play-fill';
 
+    const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
+    if (activeTask && state.timer.elapsedTaskSecs) {
+      activeTask.focusMinsDone = Math.round(state.timer.elapsedTaskSecs / 60);
+    }
+
     // Pause YouTube music/ambient audio when timer is paused!
     try {
       if (lofiAudioFrame && lofiAudioFrame.contentWindow) {
@@ -1686,17 +1725,23 @@
     if (isNaN(mins) || mins === 0) return;
     const addSecs = mins * 60;
 
+    const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
+    if (activeTask && mins > 0) {
+      activeTask.durationPlannedMin = (activeTask.durationPlannedMin || 25) + mins;
+    }
+
     if (state.timer.mode === 'overtime') {
       if (mins > 0) {
         state.timer.mode = 'countdown';
         state.timer.remainingSecs = addSecs;
         state.timer.initialDurationSecs = addSecs;
+        state.timer.overtimeSecs = 0;
       }
     } else {
       state.timer.remainingSecs = Math.max(10, state.timer.remainingSecs + addSecs);
       state.timer.initialDurationSecs = Math.max(state.timer.remainingSecs, state.timer.initialDurationSecs + addSecs);
     }
-    renderTimerDigits();
+    renderAll();
     saveState();
   }
 
@@ -1712,12 +1757,20 @@
   }
 
   function setExactFocusMinutes(exactMins) {
+    const currentRemainingMins = state.timer.mode === 'countdown' ? Math.floor(state.timer.remainingSecs / 60) : 0;
+    const diffMins = exactMins - currentRemainingMins;
+    const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
+    if (activeTask && diffMins > 0) {
+      activeTask.durationPlannedMin = (activeTask.durationPlannedMin || 25) + diffMins;
+    }
+
     const secs = exactMins * 60;
     state.timer.mode = 'countdown';
     state.timer.remainingSecs = secs;
     state.timer.initialDurationSecs = secs;
+    state.timer.overtimeSecs = 0;
     state.timer.alert5MinFired = false;
-    renderTimerDigits();
+    renderAll();
     saveState();
   }
 
@@ -1943,9 +1996,9 @@
       activeTask.fileOutput = taskFileOutputInput.value.trim();
       activeTask.proofImage = taskProofDataInput.value || '';
 
-      const elapsedSecs = state.timer.initialDurationSecs - state.timer.remainingSecs + state.timer.overtimeSecs;
-      const sessionMins = Math.round(elapsedSecs / 60);
-      activeTask.focusMinsDone = (activeTask.focusMinsDone || 0) + sessionMins;
+      const totalElapsedSecs = state.timer.elapsedTaskSecs || 0;
+      const totalFocusMins = Math.round(totalElapsedSecs / 60);
+      activeTask.focusMinsDone = Math.max(1, totalFocusMins);
 
       // Auto-adjust endTime based on actual focus duration + distraction mins!
       if (activeTask.startTime) {

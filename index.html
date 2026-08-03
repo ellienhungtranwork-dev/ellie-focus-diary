@@ -72,6 +72,9 @@
           <button class="btn-screenshot-autofill" id="screenshotAutoFillBtn" title="Auto-fill tasks from Markdown or AG check-in table">
             <i class="ri-file-text-line"></i> 📋 Auto-fill from Markdown / AG
           </button>
+          <button class="btn-reset-today-tasks" id="resetTodayTasksBtn" title="Xóa sạch toàn bộ tasks cũ của ngày hôm nay & trả về trạng thái trống ban đầu" style="background: rgba(239, 68, 68, 0.12); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.3); padding: 7px 13px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
+            <i class="ri-delete-bin-line"></i> 🧹 Reset Tasks Ngày
+          </button>
           <button class="btn-ai-consult" id="aiConsultTriggerBtn">
             <i class="ri-brain-fill"></i> ✨ AI Morning Consultant (Gemini)
           </button>
@@ -945,6 +948,9 @@
           </div>
           <textarea id="ocrRawTextArea" rows="7" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font-family: monospace; font-size: 12px; line-height: 1.5; resize: vertical;" placeholder="| Khung Giờ | Mã Task | Mảng Công Việc | Chi Tiết Nhiệm Vụ | Thời Lượng | Độ Ưu Tiên | Trạng Thái |&#10;| 15:10 - 15:55 | BD011-01 | BD | Lọc connection LinkedIn Ellie | 45ph | High | [ ] |"></textarea>
           <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+            <button type="button" class="btn-cancel" id="clearModalTasksBtn" style="padding: 6px 14px; font-size: 13px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; cursor: pointer; border-radius: 8px; font-weight: 700;">
+              <i class="ri-delete-bin-line"></i> 🧹 Xóa Task Cũ Về Trống
+            </button>
             <button type="button" class="btn-submit" id="reparseOcrBtn" style="padding: 6px 14px; font-size: 13px;">
               <i class="ri-magic-line"></i> Phân Tích Markdown Tasks
             </button>
