@@ -7,7 +7,15 @@
 
   const STORAGE_KEY = 'ellie_focus_diary_state_v7';
 
-  const TODAY_STR = new Date().toISOString().split('T')[0];
+  function getTodayStr() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  const TODAY_STR = getTodayStr();
 
   const BEAUTY_SPOTS = [
     {
@@ -388,54 +396,99 @@
       startTimer();
     }
 
-    // Always save state when window is closed, refreshed, or unloaded
+    // Always save state when window is closed, refreshed, unloaded, or hidden
     window.addEventListener('beforeunload', saveState);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        saveState();
+      }
+    });
   }
 
   function saveState() {
-    state.lastActiveDate = TODAY_STR;
-    if (state.timer) {
-      state.timer.lastTickTimestamp = Date.now();
+    try {
+      const currentToday = getTodayStr();
+      state.lastActiveDate = currentToday;
+      if (state.timer) {
+        state.timer.lastTickTimestamp = Date.now();
+      }
+
+      // Safe replacer to exclude non-serializable properties (like intervalId)
+      const serializableState = JSON.parse(JSON.stringify(state, (key, value) => {
+        if (key === 'intervalId') return null;
+        return value;
+      }));
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(serializableState));
+    } catch (err) {
+      console.error('Failed to save state to localStorage:', err);
+      // Fallback for QuotaExceededError (e.g., large base64 proof images)
+      try {
+        const fallbackState = JSON.parse(JSON.stringify(state, (key, value) => {
+          if (key === 'intervalId') return null;
+          if (key === 'proofImage' && typeof value === 'string' && value.length > 500) return '';
+          return value;
+        }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(fallbackState));
+      } catch (fallbackErr) {
+        console.error('Fallback saveState also failed:', fallbackErr);
+      }
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
   function loadState() {
+    const currentToday = getTodayStr();
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        state = { ...state, ...parsed };
+        if (parsed && typeof parsed === 'object') {
+          state = { ...state, ...parsed };
 
-        // Real-time Timer Auto-Recovery On Crash / Page Reload
-        if (state.timer && state.timer.isRunning && state.timer.lastTickTimestamp) {
-          const elapsedSecs = Math.floor((Date.now() - state.timer.lastTickTimestamp) / 1000);
-          if (elapsedSecs > 0) {
-            state.timer.elapsedTaskSecs = (state.timer.elapsedTaskSecs || 0) + elapsedSecs;
-            if (state.timer.mode === 'countdown' || state.timer.mode === 'break') {
-              if (state.timer.remainingSecs > elapsedSecs) {
-                state.timer.remainingSecs -= elapsedSecs;
+          if (!Array.isArray(state.tasks)) {
+            state.tasks = [];
+          }
+
+          if (state.distractModalTimer) {
+            state.distractModalTimer.intervalId = null;
+          }
+
+          // Real-time Timer Auto-Recovery On Crash / Page Reload
+          if (state.timer && state.timer.isRunning && state.timer.lastTickTimestamp) {
+            const elapsedSecs = Math.floor((Date.now() - state.timer.lastTickTimestamp) / 1000);
+            if (elapsedSecs > 0) {
+              state.timer.elapsedTaskSecs = (state.timer.elapsedTaskSecs || 0) + elapsedSecs;
+              if (state.timer.mode === 'countdown' || state.timer.mode === 'break') {
+                if (state.timer.remainingSecs > elapsedSecs) {
+                  state.timer.remainingSecs -= elapsedSecs;
+                } else {
+                  const leftover = elapsedSecs - state.timer.remainingSecs;
+                  state.timer.mode = 'overtime';
+                  state.timer.remainingSecs = 0;
+                  state.timer.overtimeSecs = (state.timer.overtimeSecs || 0) + leftover;
+                }
               } else {
-                const leftover = elapsedSecs - state.timer.remainingSecs;
-                state.timer.mode = 'overtime';
-                state.timer.remainingSecs = 0;
-                state.timer.overtimeSecs = (state.timer.overtimeSecs || 0) + leftover;
+                state.timer.overtimeSecs = (state.timer.overtimeSecs || 0) + elapsedSecs;
               }
-            } else {
-              state.timer.overtimeSecs = (state.timer.overtimeSecs || 0) + elapsedSecs;
             }
           }
         }
       } catch (e) {
-        console.error('Failed to load state:', e);
+        console.error('Failed to load state from localStorage:', e);
       }
+    }
+
+    if (!state.selectedDate) {
+      state.selectedDate = currentToday;
     }
   }
 
   // Automatic New Day Transition Check (Safeguards Past Data)
   function checkNewDayTransition() {
-    if (state.lastActiveDate && state.lastActiveDate !== TODAY_STR) {
-      state.lastActiveDate = TODAY_STR;
+    const currentToday = getTodayStr();
+    if (state.lastActiveDate && state.lastActiveDate !== currentToday) {
+      state.lastActiveDate = currentToday;
+      state.selectedDate = currentToday;
       state.activeTaskId = null;
       saveState();
     }
@@ -1164,6 +1217,10 @@
   }
 
   function renderAll() {
+    const workspaceDatePicker = document.getElementById('workspaceDatePicker');
+    if (workspaceDatePicker) {
+      workspaceDatePicker.value = state.selectedDate || getTodayStr();
+    }
     renderEnergyButtons();
     renderHardDeadlines();
     renderTasks();
@@ -1555,14 +1612,10 @@
       activeCategoryBadge.textContent = 'No task selected';
       activeTaskTitle.textContent = 'Select a task to begin';
       activeTaskGoal.textContent = 'Click ▶️ on any task from your shift lists';
-      timerDigits.textContent = '25:00';
-      floatingDigits.textContent = '25:00';
-      popoutDigits.textContent = '25:00';
       popoutTaskName.textContent = 'No task selected';
       timerSubStatus.textContent = '0 pomodoros done';
-      overtimeBadge.classList.add('hidden');
       distractionMiniBar.classList.add('hidden');
-      updateProgressRing(1);
+      renderTimerDigits();
       return;
     }
 
@@ -1726,8 +1779,8 @@
     const addSecs = mins * 60;
 
     const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
-    if (activeTask && mins > 0) {
-      activeTask.durationPlannedMin = (activeTask.durationPlannedMin || 25) + mins;
+    if (activeTask) {
+      activeTask.durationPlannedMin = Math.max(5, (activeTask.durationPlannedMin || 25) + mins);
     }
 
     if (state.timer.mode === 'overtime') {
@@ -1760,8 +1813,8 @@
     const currentRemainingMins = state.timer.mode === 'countdown' ? Math.floor(state.timer.remainingSecs / 60) : 0;
     const diffMins = exactMins - currentRemainingMins;
     const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
-    if (activeTask && diffMins > 0) {
-      activeTask.durationPlannedMin = (activeTask.durationPlannedMin || 25) + diffMins;
+    if (activeTask) {
+      activeTask.durationPlannedMin = Math.max(5, (activeTask.durationPlannedMin || 25) + diffMins);
     }
 
     const secs = exactMins * 60;
