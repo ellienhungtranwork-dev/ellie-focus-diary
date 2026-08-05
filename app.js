@@ -17,6 +17,16 @@
 
   const TODAY_STR = getTodayStr();
 
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   const BEAUTY_SPOTS = [
     {
       name: 'Kyoto Cherry Blossoms, Japan',
@@ -1093,7 +1103,22 @@
     }
 
     // Toast Notification
-    closeToastBtn.addEventListener('click', () => alertToastNotification.classList.add('hidden'));
+    if (closeToastBtn) closeToastBtn.addEventListener('click', () => alertToastNotification.classList.add('hidden'));
+
+    // Global Modal Backdrop Click-Outside & Escape Key handlers (prevents stuck modals!)
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) {
+          backdrop.classList.add('hidden');
+        }
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-backdrop, .alert-toast').forEach(el => el.classList.add('hidden'));
+      }
+    });
 
     // Export
     exportCsvBtn.addEventListener('click', exportDataAsCSV);
