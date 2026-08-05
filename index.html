@@ -69,6 +69,9 @@
             <label for="workspaceDatePicker" style="font-size: 13px; font-weight: 700; color: #4a5568; cursor: pointer; display: flex; align-items: center; gap: 4px;"><i class="ri-calendar-event-fill text-pink"></i> Work Date:</label>
             <input type="date" id="workspaceDatePicker" style="border: none; background: transparent; font-size: 13px; font-weight: 700; color: #1a202c; cursor: pointer; outline: none;" />
           </div>
+          <button class="btn-save-data" id="saveDataBtn" title="Lưu toàn bộ dữ liệu làm việc hiện tại vào bộ nhớ lập tức" style="background: rgba(34, 197, 94, 0.15); color: #15803d; border: 1px solid rgba(34, 197, 94, 0.35); padding: 7px 14px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
+            <i class="ri-save-3-line"></i> 💾 Save Data
+          </button>
           <button class="btn-screenshot-autofill" id="screenshotAutoFillBtn" title="Auto-fill tasks from Markdown or AG check-in table">
             <i class="ri-file-text-line"></i> 📋 Auto-fill from Markdown / AG
           </button>
@@ -82,6 +85,7 @@
             <i class="ri-brain-fill"></i> ✨ AI Morning Consultant (Gemini)
           </button>
         </div>
+
       </div>
 
       <!-- Top 3 Goals & Hard Deadlines Grid -->
@@ -840,8 +844,8 @@
         </div>
 
         <div class="form-group mt-2">
-          <label>Deliverables Output Summary (*):</label>
-          <textarea id="taskFinalOutputInput" rows="2" required placeholder="e.g., Drafted proposal and generated PDF..."></textarea>
+          <label>Deliverables Output Summary:</label>
+          <textarea id="taskFinalOutputInput" rows="2" placeholder="e.g., Drafted proposal and generated PDF..."></textarea>
         </div>
 
         <div class="form-group mt-2">
@@ -875,6 +879,7 @@
         <button type="button" class="btn-cancel" id="cancelOutputModalBtn">Back to Focus</button>
         <button type="button" class="btn-submit btn-success" id="confirmCompleteTaskBtn">Finish & Save</button>
       </div>
+
     </div>
   </div>
 

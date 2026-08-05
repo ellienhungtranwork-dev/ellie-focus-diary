@@ -726,8 +726,25 @@
     if (closeScreenshotModalBtn) closeScreenshotModalBtn.addEventListener('click', () => screenshotModalBackdrop.classList.add('hidden'));
     if (cancelScreenshotModalBtn) cancelScreenshotModalBtn.addEventListener('click', () => screenshotModalBackdrop.classList.add('hidden'));
 
+    // Manual Save Data Button Event Listener
+    const saveDataBtn = document.getElementById('saveDataBtn');
+    if (saveDataBtn) {
+      saveDataBtn.addEventListener('click', () => {
+        saveState();
+        if (alertToastNotification) {
+          alertToastNotification.classList.remove('hidden');
+          alertToastNotification.querySelector('h4').textContent = '💾 Data Saved Successfully!';
+          alertToastNotification.querySelector('p').textContent = `Đã lưu an toàn ${state.tasks ? state.tasks.length : 0} tasks & cài đặt vào bộ nhớ local!`;
+          setTimeout(() => alertToastNotification.classList.add('hidden'), 3500);
+        } else {
+          alert(`💾 Đã lưu an toàn toàn bộ ${state.tasks ? state.tasks.length : 0} tasks & dữ liệu hiện tại!`);
+        }
+      });
+    }
+
     // Load Last Data / Restore Snapshot Event Listener
     const restoreLatestDataBtn = document.getElementById('restoreLatestDataBtn');
+
     if (restoreLatestDataBtn) {
       restoreLatestDataBtn.addEventListener('click', () => {
         let saved = localStorage.getItem(STORAGE_KEY);
@@ -2035,10 +2052,25 @@
   }
 
   // --- OUTPUT COMPLETE MODAL & CONGRATS POP-UP ---
-  function openOutputModal() {
-    if (!state.activeTaskId) return;
+  function openOutputModal(taskId = null) {
+    if (taskId) {
+      state.activeTaskId = taskId;
+    }
+    if (!state.activeTaskId) {
+      const activeDate = state.selectedDate || TODAY_STR;
+      const pendingTask = state.tasks.find(t => (t.date || TODAY_STR) === activeDate && t.status !== 'completed');
+      if (pendingTask) {
+        state.activeTaskId = pendingTask.id;
+      } else if (state.tasks.length > 0) {
+        state.activeTaskId = state.tasks[0].id;
+      } else {
+        alert('Chưa có task nào trong danh sách!');
+        return;
+      }
+    }
     pauseTimer();
     const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
+    if (!activeTask) return;
     
     const statusSelect = document.getElementById('taskCompletionStatusSelect');
     if (statusSelect) {
@@ -2059,50 +2091,68 @@
   }
 
   function confirmCompleteTask() {
-    const finalOutput = taskFinalOutputInput.value.trim();
-    if (!finalOutput) {
-      alert('Please fill out the Deliverables Output summary!');
-      return;
-    }
-
-    const statusSelect = document.getElementById('taskCompletionStatusSelect');
-    const selectedStatus = statusSelect ? statusSelect.value : 'completed';
-
-    const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
-    if (activeTask) {
-      activeTask.status = selectedStatus;
-      activeTask.output = finalOutput;
-      activeTask.linkOutput = taskLinkOutputInput.value.trim();
-      activeTask.fileOutput = taskFileOutputInput.value.trim();
-      activeTask.proofImage = taskProofDataInput.value || '';
-
-      const totalElapsedSecs = state.timer.elapsedTaskSecs || 0;
-      const totalFocusMins = Math.round(totalElapsedSecs / 60);
-      activeTask.focusMinsDone = Math.max(1, totalFocusMins);
-
-      // Auto-adjust endTime based on actual focus duration + distraction mins!
-      if (activeTask.startTime) {
-        const totalDistractMins = (activeTask.distractions || []).reduce((sum, d) => sum + d.duration_min, 0);
-        const totalTaskSpanMins = (activeTask.focusMinsDone || activeTask.durationPlannedMin) + totalDistractMins;
-        activeTask.endTime = calculateTaskEndTime(activeTask.startTime, totalTaskSpanMins);
-        
-        // Auto-cascade subsequent tasks in the same shift so their start times move cleanly!
-        autoCascadeShiftTimeline(activeTask.shift, activeTask.startTime);
+    try {
+      let finalOutput = taskFinalOutputInput.value.trim();
+      if (!finalOutput) {
+        finalOutput = 'Completed task milestone';
       }
 
-      const statusBadgeText = selectedStatus === 'completed' ? '✅ Fully Completed' : (selectedStatus === 'carried_over' ? '🔄 Carried Over to Tomorrow' : '⏸️ Saved In Progress');
+      const statusSelect = document.getElementById('taskCompletionStatusSelect');
+      const selectedStatus = statusSelect ? statusSelect.value : 'completed';
 
-      congratsTaskTitle.textContent = activeTask.title;
-      congratsMeta.textContent = `Status: ${statusBadgeText} · Focused for ${activeTask.focusMinsDone || activeTask.durationPlannedMin} minutes!`;
-      congratsDeliverableBox.innerHTML = `<span>Summary Logged: "${escapeHtml(finalOutput)}"</span>${activeTask.proofImage ? '<br><small>📷 Screenshot Proof Attached</small>' : ''}`;
-      congratsModalBackdrop.classList.remove('hidden');
+      let activeTask = state.tasks.find(t => t.id === state.activeTaskId);
+      if (!activeTask) {
+        const activeDate = state.selectedDate || TODAY_STR;
+        activeTask = state.tasks.find(t => (t.date || TODAY_STR) === activeDate && t.status !== 'completed') || state.tasks[0];
+      }
+
+      if (activeTask) {
+        activeTask.status = selectedStatus;
+        activeTask.output = finalOutput;
+        activeTask.linkOutput = taskLinkOutputInput.value.trim();
+        activeTask.fileOutput = taskFileOutputInput.value.trim();
+        activeTask.proofImage = taskProofDataInput.value || '';
+
+        const totalElapsedSecs = (state.timer && typeof state.timer.elapsedTaskSecs === 'number') ? state.timer.elapsedTaskSecs : 0;
+        const totalFocusMins = Math.round(totalElapsedSecs / 60);
+        activeTask.focusMinsDone = Math.max(1, totalFocusMins > 0 ? totalFocusMins : (activeTask.durationPlannedMin || 25));
+
+        // Auto-adjust endTime based on actual focus duration + distraction mins!
+        if (activeTask.startTime) {
+          const totalDistractMins = (activeTask.distractions || []).reduce((sum, d) => sum + d.duration_min, 0);
+          const totalTaskSpanMins = (activeTask.focusMinsDone || activeTask.durationPlannedMin) + totalDistractMins;
+          activeTask.endTime = calculateTaskEndTime(activeTask.startTime, totalTaskSpanMins);
+          
+          // Auto-cascade subsequent tasks in the same shift so their start times move cleanly!
+          autoCascadeShiftTimeline(activeTask.shift, activeTask.startTime);
+        }
+
+        const statusBadgeText = selectedStatus === 'completed' ? '✅ Fully Completed' : (selectedStatus === 'carried_over' ? '🔄 Carried Over to Tomorrow' : '⏸️ Saved In Progress');
+
+        const congratsTaskTitle = document.getElementById('congratsTaskTitle');
+        const congratsMeta = document.getElementById('congratsMeta');
+        const congratsDeliverableBox = document.getElementById('congratsDeliverableBox');
+
+        if (congratsTaskTitle) congratsTaskTitle.textContent = activeTask.title;
+        if (congratsMeta) congratsMeta.textContent = `Status: ${statusBadgeText} · Focused for ${activeTask.focusMinsDone || activeTask.durationPlannedMin} minutes!`;
+        if (congratsDeliverableBox) congratsDeliverableBox.innerHTML = `<span>Summary Logged: "${escapeHtml(finalOutput)}"</span>${activeTask.proofImage ? '<br><small>📷 Screenshot Proof Attached</small>' : ''}`;
+        
+        const congratsModalBackdrop = document.getElementById('congratsModalBackdrop');
+        if (congratsModalBackdrop) congratsModalBackdrop.classList.remove('hidden');
+      }
+    } catch (err) {
+      console.error('Error completing task:', err);
+    } finally {
+      state.activeTaskId = null;
+      const modal = document.getElementById('outputModalBackdrop') || outputModalBackdrop;
+      if (modal) modal.classList.add('hidden');
+      saveState();
+      renderAll();
     }
-
-    state.activeTaskId = null;
-    outputModalBackdrop.classList.add('hidden');
-    saveState();
-    renderAll();
   }
+
+  window.confirmCompleteTask = confirmCompleteTask;
+
 
   // --- GEMINI AI CONSULT ENGINE ---
   async function openAiConsultModal() {
@@ -2546,14 +2596,46 @@
     taskProofDataInput.value = '';
   }
 
+  function compressImageBase64(dataUrl, maxDim, quality, callback) {
+    if (!dataUrl || !dataUrl.startsWith('data:image')) {
+      callback(dataUrl);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+      callback(compressedDataUrl);
+    };
+    img.onerror = () => callback(dataUrl);
+    img.src = dataUrl;
+  }
+
   function handleProofFileSelect(file) {
     if (!file || !file.type.startsWith('image/')) return;
     const reader = new FileReader();
     reader.onload = (e) => {
-      proofPreviewImg.src = e.target.result;
-      taskProofDataInput.value = e.target.result;
-      proofPastePlaceholder.classList.add('hidden');
-      proofImagePreview.classList.remove('hidden');
+      compressImageBase64(e.target.result, 800, 0.6, (compressedDataUrl) => {
+        proofPreviewImg.src = compressedDataUrl;
+        taskProofDataInput.value = compressedDataUrl;
+        proofPastePlaceholder.classList.add('hidden');
+        proofImagePreview.classList.remove('hidden');
+      });
     };
     reader.readAsDataURL(file);
   }
